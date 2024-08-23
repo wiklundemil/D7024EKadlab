@@ -9,7 +9,7 @@ But it's probably better to put it in one place so everyone gets the same inform
 The PDF describing the lab assignment (in Canvas) contains a link to a web page in a footnote.
 This page contains helpful information on implementation details that are missing in the original paper that describes Kademlia.
 Because it is easy to miss, I'm also including it here:
-[](https://xlattice.sourceforge.net/components/protocol/kademlia/specs.html)
+[https://xlattice.sourceforge.net/components/protocol/kademlia/specs.html](https://xlattice.sourceforge.net/components/protocol/kademlia/specs.html)
 
 
 ### Testing
