@@ -35,8 +35,21 @@ However, there are other options, especially in Go, which has *channels* built i
 For example, one option is to let only a single goroutine have access to a particular datastructure, and then other goroutines communicate with it using channels.
 If you get used to this way of thinking, you may find this solution to be **simpler** than locks!
 
-Either way, you can run your tests with the `-race` flag.
+Either way, you can run your tests with the `-race` flag (see documentation: [Data Race Detector](https://go.dev/doc/articles/race_detector)).
 This will instrument your code so that race conditions can be detected automatically.
 **However**, how helpful this is depends on how good your tests are.
 If there are race conditions that your tests never touch, then they will not be detected.
 (Running with `-race` is a dynamic rather than static analysis!)
+
+
+### Report
+
+The instructions say that the report needs to include "a system architecture description that also contains an implementation overview".
+A common question is what this should look like.
+Ultimately, the point is that you are supposed to communicate to someone how your system is designed.
+What are the main components, and how do they communicate with each other, etc?
+Just like you have to make choices about what the best way is to design and implement your solution, you have to make choices about what the best way is to communicate to someone else what you have done.
+
+Try this: imagine that we change the assignment so that the students next year will get your implementation as a starting point and are asked to improve it, such as adding features.
+*What information would they need so they quickly understand your implementation and can start modifying it?*
+*What design choices should they be aware of?*
