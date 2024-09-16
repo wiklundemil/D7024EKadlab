@@ -11,3 +11,12 @@ FROM alpine:latest
 # "kadlab", which you do by using the following command:
 #
 # $ docker build . -t kadlab
+
+
+FROM golang:1.18
+
+WORKDIR /app
+COPY . .
+
+# Run tests
+CMD ["go", "test", "./kademlia"]
