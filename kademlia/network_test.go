@@ -1,6 +1,9 @@
 package kademlia
 
-import "testing"
+import (
+	"testing"
+	"fmt"
+)
 
 func TestSendPingMessage(t *testing.T) {
 	// Setup real network data
@@ -34,9 +37,20 @@ func TestJoinNetwork(t *testing.T) {
 	network.JoinNetwork(&me)
 	network.JoinNetwork(&me2)
 	
+
+
+    fmt.Printf("Node Address111: %s\n", me.Address)
+    fmt.Printf("Node Address222: %s\n", me2.Address)
+
+
+
+
 	// Get the closest contacts to verify the join process
 	closestContacts := network.RoutingTable.FindClosestContacts(NewKademliaID("d5023b0433620a6a1a38715f14601dd3c1553d763fc8bee9310c7ec6fcf8d6a3"), 1)
 
+
+
+	
 	// Check if the node successfully joined the network
 	if closestContacts[0].ID.String() != me.ID.String() {
 		t.Errorf("Failed to join network. Expected closest contact to be %s, got %s", me.ID.String(), closestContacts[0].ID.String())
