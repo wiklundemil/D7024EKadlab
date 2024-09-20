@@ -19,8 +19,33 @@ type Network struct {
 	RoutingTable *RoutingTable //The Routing table for this network. 
 }
 
-func Listen(ip string, port int) {
-	// TODO
+func (network *Network) Listen(ip string, port int) error{ //We need to return a network 
+	address := fmt.Sprintf("%s:%d", ip, port)
+	listener, err := net.ListenUDP("udp", &net.UDPAddr{
+		IP:   net.ParseIP(ip),
+		Port: port,
+	})
+	if err != nil {
+		return err
+	}
+	defer listener.Close()
+
+	fmt.Printf("Listening on %s\n", address)
+
+	for {
+		data := make([]byte, 1024) //We slice up in 1024 beacuse its relativly big and makes it possible to focus on *this* part of the bytestream which will be much smaller. 
+		len, remote, err := listener.ReadFromUDP(data)
+		if err != nil {
+			fmt.Println("Error reading from UDP:", err)
+			continue
+		}
+		response, err := network.HandleMessage(data[:len])
+		if err != nil {
+			fmt.Println("Error when handling Message:", err)
+			continue
+		}
+		listener.WriteToUDP(response, remote)
+	}
 }
 
 // SendPingMessage sends a PING message to a target contact to check if it's alive
@@ -63,8 +88,8 @@ func (network *Network) SendMessage(msg Message, contact *Contact) ([]byte, erro
 	}
 	
 	//If no errors we move on to saving the data 
-	byteStream, err := json.Marshal(&msg) //Pointer due to us not wanting to send the object directly
-	_,  err = connection.Write(byteStream) //This row is the row that does the magic, it sends the byteStream over the network (write -> udp)
+	byteStream, err := json.Marshal(msg) //Pointer due to us not wanting to send the object directly
+	_, err = connection.Write(byteStream) //This row is the row that does the magic, it sends the byteStream over the network (write -> udp)
 	
 	if err != nil {
 		fmt.Println("Error sending data (UDP)")
@@ -90,7 +115,7 @@ func (network *Network) SendMessage(msg Message, contact *Contact) ([]byte, erro
 // 2. Joining does not work 
 // 3. The contact is not reachable/does not respond.
 
-func (network *Network) JoinNetwork(contact *Contact) error {
+func (network *Network) JoinNetwork(contact *Contact) {
 	// Create a JOIN message
 	reciverID := contact.ID.String()
 
@@ -103,20 +128,19 @@ func (network *Network) JoinNetwork(contact *Contact) error {
 	// Send the JOIN message to the contact
 	response, err := network.SendMessage(join, contact)
 	if err != nil {
-		return fmt.Errorf("Failed to send JOIN message to node %s: %w", reciverID, err) //writing join acts as .self it seem like 
+		fmt.Errorf("Failed to send JOIN message to node %s: %w", reciverID, err) //writing join acts as .self it seem like 
 	}
 
 	var msg Message
 	err = json.Unmarshal(response, &msg)
 	if err != nil {
-		return fmt.Errorf("No response from node %s: %v\n", reciverID, err)
+		fmt.Errorf("No response from node %s: %v\n", reciverID, err)
 		
 	}
 
 	if msg.MessageType != "JOIN_ACK" {
-		return fmt.Errorf("Node %s failed to join the network %s", reciverID, join.Content)
+		fmt.Errorf("Node %s failed to join the network %s", reciverID, join.Content)
 	}
-	return fmt.Errorf("Something went wrong joining the network...")
 }
 
 
