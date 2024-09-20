@@ -13,7 +13,7 @@ services:
     tty: true
     deploy:
       mode: replicated
-      replicas: 50 #Number of nodes  
+      replicas: 5 #Number of nodes  
 #        resources:
 #           limits:
 #              cpus: "0.1"
