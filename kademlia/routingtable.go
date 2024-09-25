@@ -1,7 +1,8 @@
 package kademlia
 
-const bucketSize = 20
+import "fmt"
 
+const bucketSize = 20
 
 // RoutingTable definition
 // keeps a refrence contact of me and an array of buckets
@@ -67,4 +68,17 @@ func (routingTable *RoutingTable) getBucketIndex(id *KademliaID) int {
 	}
 
 	return IDLength*8 - 1
+}
+
+func (routingTable *RoutingTable) FindContact(targetID *KademliaID) (Contact, error) {
+	bucketIndex := routingTable.getBucketIndex(targetID)
+	bucket := routingTable.buckets[bucketIndex]
+
+	for _, contact := range bucket.contacts {
+		if contact.ID.Equals(targetID) {
+			return contact, nil
+		}
+	}
+
+	return Contact{}, fmt.Errorf("contact not found")
 }
