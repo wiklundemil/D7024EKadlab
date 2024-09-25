@@ -76,7 +76,7 @@ func (network *Network) SendPingMessage(contact *Contact) {
 	if msg.MessageType != "PING_ACK"{
 		fmt.Println("PING_ACK not recived, we recived: ", msg.MessageType)
 		return
-	}	
+	}
 }
 
 // SendMessage simulates sending a message to the given contact
