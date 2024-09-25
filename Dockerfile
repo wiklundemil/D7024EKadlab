@@ -13,10 +13,11 @@ FROM alpine:latest
 # $ docker build . -t kadlab
 
 
-FROM golang:1.18
+FROM alpine:latest
 
-WORKDIR /app
+RUN  apk add --no-cache go git
+# Copy the local code from the Go directory to the container
 COPY . .
 
-# Run tests
-CMD ["go", "test", "./kademlia"]
+# Define the command to run the executable
+CMD ["go", "run" ,"main.go"]
