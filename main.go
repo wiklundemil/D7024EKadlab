@@ -7,6 +7,11 @@ import (
 	"os"
 	"strconv"
 	"strings"
+<<<<<<< HEAD
+=======
+	"bufio"
+	"strconv"
+>>>>>>> fddc6b9ed0eedcbbede6f4d9d57a0874544ba4e5
 	"time"
 )
 
@@ -38,6 +43,7 @@ func commandLineInterface(kademliaInstance *kademlia.Kademlia) {
 		}
 
 		fmt.Print("\nCommands: %s, arg: %s\n", command, arg)
+<<<<<<< HEAD
 		// Add PING command handling
 		switch command {
 		case "PING":
@@ -47,6 +53,9 @@ func commandLineInterface(kademliaInstance *kademlia.Kademlia) {
 			}
 			kademliaInstance.PingCommand(arg) // Pass the NodeID to the PingCommand function
 		}
+=======
+
+>>>>>>> fddc6b9ed0eedcbbede6f4d9d57a0874544ba4e5
 	}
 }
 
@@ -74,7 +83,11 @@ func JoinNetwork(address string) *kademlia.Kademlia {
 	}
 
 	fmt.Printf("\nThe kademliainstance: %+v\n", kademliaInstance)
+<<<<<<< HEAD
 
+=======
+	
+>>>>>>> fddc6b9ed0eedcbbede6f4d9d57a0874544ba4e5
 	return kademliaInstance
 }
 
@@ -83,6 +96,7 @@ func main() {
 	var NETWORK_PORT int = 3000
 
 	fmt.Println("\nRunning Main function...")
+<<<<<<< HEAD
 	NETWORK_PORT_STR := strconv.Itoa(NETWORK_PORT) //From int to string
 	kademliaInstance := JoinNetwork(NETWORK_IP + ":" + NETWORK_PORT_STR)
 
@@ -90,6 +104,16 @@ func main() {
 	//Why kademlia.Listen -> in golang we specify which package the Listen function lie in. This is enough to find the function.
 	go kademliaInstance.Network.Listen(NETWORK_IP, NETWORK_PORT) //We start a goroutine by writing go first. This let us run this on a different thread. Concurrency.
 	time.Sleep(1 * time.Second)                                  //For now, later add concurrency so that listen print Listening on ... before we start goroutine for CLI
+=======
+	NETWORK_PORT_STR := strconv.Itoa(NETWORK_PORT) //From int to string 
+	kademliaInstance := JoinNetwork(NETWORK_IP + ":" + NETWORK_PORT_STR)
+	
+
+	//Why we have Network.Listen is beacuse it is defined via a network ::: func >>>>(network *Network)<<<< Listen(ip string, port int) error{}
+	//Why kademlia.Listen -> in golang we specify which package the Listen function lie in. This is enough to find the function. 
+	go kademliaInstance.Network.Listen(NETWORK_IP, NETWORK_PORT)	//We start a goroutine by writing go first. This let us run this on a different thread. Concurrency.
+	time.Sleep(1 * time.Second) //For now, later add concurrency so that listen print Listening on ... before we start goroutine for CLI
+>>>>>>> fddc6b9ed0eedcbbede6f4d9d57a0874544ba4e5
 	go commandLineInterface(kademliaInstance)
 
 	select {} //This is a block for the main goroutine, used to have main running indefinitely
