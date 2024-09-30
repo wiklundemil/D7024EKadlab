@@ -70,15 +70,18 @@ func (routingTable *RoutingTable) getBucketIndex(id *KademliaID) int {
 	return IDLength*8 - 1
 }
 
+
+// FindContact searches for a contact by ID in the routing table
 func (routingTable *RoutingTable) FindContact(targetID *KademliaID) (Contact, error) {
-	bucketIndex := routingTable.getBucketIndex(targetID)
-	bucket := routingTable.buckets[bucketIndex]
+    bucketIndex := routingTable.getBucketIndex(targetID)
+    bucket := routingTable.buckets[bucketIndex]
 
-	for _, contact := range bucket.contacts {
-		if contact.ID.Equals(targetID) {
-			return contact, nil
-		}
-	}
+    for elem := bucket.list.Front(); elem != nil; elem = elem.Next() {
+        contact := elem.Value.(*Contact) // Type assertion to get the Contact type
+        if contact.ID.Equals(targetID) {   // Compare IDs
+            return *contact, nil           // Return the matching contact
+        }
+    }
 
-	return Contact{}, fmt.Errorf("contact not found")
+    return Contact{}, fmt.Errorf("contact not found") // Return an error if not found
 }

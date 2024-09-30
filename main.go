@@ -14,6 +14,7 @@ func commandLineInterface(kademliaInstance *kademlia.Kademlia) {
 	for {
 		scanner := bufio.NewReader(os.Stdin)
 		fmt.Print("\n[Command] [INPUT] ... [INPUT]")
+		
 		fmt.Print("\n>>>")
 
 		// Single quotes ('') are for runes (a single character).
@@ -37,7 +38,7 @@ func commandLineInterface(kademliaInstance *kademlia.Kademlia) {
 			arg = slices[1] //as a basecase we always set the argument to be the seccond inputed value.
 		}
 
-		fmt.Print("\nCommands: %s, arg: %s\n", command, arg)
+		fmt.Printf("\nCommand: %s, arg: %s\n", command, arg)
 
 		// Add PING command handling
 		switch command {
@@ -47,6 +48,10 @@ func commandLineInterface(kademliaInstance *kademlia.Kademlia) {
 				return
 			}
 			kademliaInstance.PingCommand(arg) // Pass the NodeID to the PingCommand function
+		
+		default: 
+			fmt.Print("Entered something bad...")
+
 		}
 	}
 }
@@ -74,7 +79,7 @@ func JoinNetwork(address string) *kademlia.Kademlia {
 		Data:         &data,
 	}
 
-	fmt.Printf("\nThe kademliainstance: %+v\n", kademliaInstance)
+	//fmt.Printf("\nThe kademliainstance: %+v\n", kademliaInstance)
 
 	return kademliaInstance
 }

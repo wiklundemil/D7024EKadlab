@@ -145,6 +145,11 @@ func (network *Network) JoinNetwork(contact *Contact) {
 
 func (k *Kademlia) PingCommand(nodeID string) {
 	// Convert the provided string NodeID into a KademliaID
+	//The length of nodeID must be at least 20. Due to how the NewKademliaId is built
+	if(len(nodeID) =< 20) { //The data that should be passed to function NewKademlia 
+		return	
+	}	
+	
 	kademliaID := NewKademliaID(nodeID)
 
 	// Locate the node in the routing table using the FindContact method
@@ -157,10 +162,6 @@ func (k *Kademlia) PingCommand(nodeID string) {
 	// If the contact is found, send the ping message using the SendPingMessage function
 	k.Network.SendPingMessage(&contact)
 	fmt.Printf("Ping sent to Node %s\n", contact.Address)
-}
-
-func (network *Network) SendFindContactMessage(contact *Contact) {
-	// TODO
 }
 
 func (network *Network) SendFindContactMessage(contact *Contact) {
