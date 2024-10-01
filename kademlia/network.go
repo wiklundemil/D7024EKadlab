@@ -128,28 +128,28 @@ func (network *Network) JoinNetwork(contact *Contact) {
 	// Send the JOIN message to the contact
 	response, err := network.SendMessage(join, contact)
 	if err != nil {
-		fmt.Errorf("Failed to send JOIN message to node %s: %w", reciverID, err) //writing join acts as .self it seem like
+		fmt.Printf("Failed to send JOIN message to node %s: %w", reciverID, err) //writing join acts as .self it seem like
 	}
 
 	var msg Message
 	err = json.Unmarshal(response, &msg)
 	if err != nil {
-		fmt.Errorf("No response from node %s: %v\n", reciverID, err)
+		fmt.Printf("No response from node %s: %v\n", reciverID, err)
 
 	}
 
 	if msg.MessageType != "JOIN_ACK" {
-		fmt.Errorf("Node %s failed to join the network %s", reciverID, join.Content)
+		fmt.Printf("Node %s failed to join the network %s", reciverID, join.Content)
 	}
 }
 
 func (k *Kademlia) PingCommand(nodeID string) {
 	// Convert the provided string NodeID into a KademliaID
 	//The length of nodeID must be at least 20. Due to how the NewKademliaId is built
-	if(len(nodeID) =< 20) { //The data that should be passed to function NewKademlia 
-		return	
-	}	
-	
+	if len(nodeID) != 20 { //The data that should be passed to function NewKademlia
+		return
+	}
+
 	kademliaID := NewKademliaID(nodeID)
 
 	// Locate the node in the routing table using the FindContact method

@@ -2,7 +2,7 @@ package main
 
 import (
 	"bufio"
-	"d7024e/kademlia" //in go.mod we have a module this is what encapsulate our project and this is what is to be used for paths somehow.
+	"d7024e/kademlia" //in go.mod we have a module this is what encapsulates our project and this is what is to be used for paths somehow.
 	"fmt"
 	"os"
 	"strconv"
@@ -13,45 +13,37 @@ import (
 func commandLineInterface(kademliaInstance *kademlia.Kademlia) {
 	for {
 		scanner := bufio.NewReader(os.Stdin)
-		fmt.Print("\n[Command] [INPUT] ... [INPUT]")
-		
-		fmt.Print("\n>>>")
+		fmt.Print("\n[Command] [INPUT] ... [INPUT]\n>>> ")
 
-		// Single quotes ('') are for runes (a single character).
-		// Double quotes ("") are for strings (a sequence of characters).
-		input, err := scanner.ReadString('\n') //We need to read the input when the user press ENTER ('\n')
+		// Read input from the user
+		input, err := scanner.ReadString('\n')
 		if err != nil {
-			fmt.Print("\nError while reading input...")
+			fmt.Println("\nError while reading input...", err)
+			continue
 		}
 
-		//When taking input we will get unnecessary data (whitespaces more then one in length etc). strings.TrimSpace removes stuff like (\t, \n, \r etc)
-		//We want a single long string of characters ([command][input]...[input])
+		// Clean and split input
 		input = strings.TrimSpace(input)
-
-		//As we know that we have divider with " " a single withe space we can divide the input into slices.
 		slices := strings.SplitN(input, " ", 2)
 		command := slices[0]
 
-		//We need a way of checking if we have multiple slices (input for the commands)
+		// Extract the argument (NodeID) for the command
 		var arg string
 		if len(slices) > 1 {
-			arg = slices[1] //as a basecase we always set the argument to be the seccond inputed value.
+			arg = slices[1]
 		}
 
-		fmt.Printf("\nCommand: %s, arg: %s\n", command, arg)
-
-		// Add PING command handling
+		// Handle the PING command
 		switch command {
 		case "PING":
 			if len(arg) == 0 {
 				fmt.Println("Usage: PING <NodeID>")
-				return
+				continue
 			}
-			kademliaInstance.PingCommand(arg) // Pass the NodeID to the PingCommand function
-		
-		default: 
-			fmt.Print("Entered something bad...")
-
+			fmt.Printf("Sending PING to NodeID: %s\n", arg) // Debugging output
+			kademliaInstance.PingCommand(arg)               // Call PingCommand with NodeID
+		default:
+			fmt.Print("Unknown command...")
 		}
 	}
 }
@@ -64,7 +56,7 @@ func JoinNetwork(address string) *kademlia.Kademlia {
 	// Create routing table with self as contact
 	routingTable := kademlia.NewRoutingTable(me)
 
-	// Add bootstrap contact
+	// Add bootstrap contact (hardcoded for now)
 	bootStrapContact := kademlia.NewContact(kademlia.NewKademliaID("FFFFFFFFF0000000000000000000000000000000"), "172.20.0.6:8000")
 	routingTable.AddContact(bootStrapContact)
 
@@ -72,15 +64,12 @@ func JoinNetwork(address string) *kademlia.Kademlia {
 	data := make(map[string][]byte)
 	network := &kademlia.Network{}
 
-	// Create Kademlia instance as an object
+	// Create and return the Kademlia instance
 	kademliaInstance := &kademlia.Kademlia{
 		RoutingTable: routingTable,
 		Network:      network,
 		Data:         &data,
 	}
-
-	//fmt.Printf("\nThe kademliainstance: %+v\n", kademliaInstance)
-
 	return kademliaInstance
 }
 
@@ -90,16 +79,18 @@ func main() {
 
 	fmt.Println("\nRunning Main function...")
 
-	NETWORK_PORT_STR := strconv.Itoa(NETWORK_PORT) //From int to string
+	NETWORK_PORT_STR := strconv.Itoa(NETWORK_PORT)
 	kademliaInstance := JoinNetwork(NETWORK_IP + ":" + NETWORK_PORT_STR)
 
-	//Why we have Network.Listen is beacuse it is defined via a network ::: func >>>>(network *Network)<<<< Listen(ip string, port int) error{}
-	//Why kademlia.Listen -> in golang we specify which package the Listen function lie in. This is enough to find the function.
-	go kademliaInstance.Network.Listen(NETWORK_IP, NETWORK_PORT) //We start a goroutine by writing go first. This let us run this on a different thread. Concurrency.
-	time.Sleep(1 * time.Second)                                  //For now, later add concurrency so that listen print Listening on ... before we start goroutine for CLI
+	// Start listening on the network in a goroutine (concurrently)
+	go kademliaInstance.Network.Listen(NETWORK_IP, NETWORK_PORT)
 
+	// Ensure the listener is up before starting the CLI
+	time.Sleep(1 * time.Second)
+
+	// Start the command-line interface
 	go commandLineInterface(kademliaInstance)
 
-	select {} //This is a block for the main goroutine, used to have main running indefinitely
-
+	// Block the main function to keep the program running
+	select {} // Keeps main running indefinitely
 }

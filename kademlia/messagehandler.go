@@ -1,14 +1,14 @@
 package kademlia
 
-import(
+import (
 	"encoding/json"
 	"errors"
 	"fmt"
 )
 
-func (network *Network) HandleMessage(byteStream []byte) ([]byte, error){
+func (network *Network) HandleMessage(byteStream []byte) ([]byte, error) {
 	var msg Message //msg of type Message
-	
+
 	err := json.Unmarshal(byteStream, &msg) //pointer beacuse we do not want to use our msg directly
 	if err != nil {                         //There is something wrong with json format, something went wrong reconstructing the json
 		fmt.Println("Something wrong with byteStream")
