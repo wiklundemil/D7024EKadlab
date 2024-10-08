@@ -35,26 +35,11 @@ func CommandLineInterface(kademliaInstance *kademlia.Kademlia, address string) {
 		// Handle the PING command
 		switch command {
 		case "PING":
-			if len(arg) == 0 {
-				fmt.Println("Usage: PING <NodeID> 20+ chars")
-				continue
-			}	
-			//Kademlia make it possible to gain access to functions within this package.
-			contact := kademlia.NewContact(kademlia.NewKademliaID(arg), address)
-			kademliaInstance.Network.SendPingMessage(&contact) // Pass the NodeID to the PingCommand function
-		
+			handlePing(arg, kademliaInstance, address)
 		case "JOIN":
-			if len(arg) == 0 {
-				fmt.Println("Usage: JOIN <NodeID> 20+ chars")
-				return
-			}
-			//kademliaInstance.Network.JoinNetwork(arg) // Pass the NodeID to the PingCommand function
+			handleJoin(arg)
 		case "EXIT":
-			if len(arg) == 0 {
-				fmt.Println("Exiting node...")
-				os.Exit(0)
-			}
-			fmt.Println("Usage: EXIT")
+			handleExit(arg)
 			
 		default: 
 			fmt.Print("Entered something bad...")
