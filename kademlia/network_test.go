@@ -25,14 +25,14 @@ func TestNodeLookup(t *testing.T) {
 // TestJoinNetwork tests the JoinNetwork function
 func TestJoinNetwork(t *testing.T) {
 	// Setup real network data
-	me := NewContact(NewKademliaID("eacd8eaf02d284c497494f7473bf49991b250bac94fae100acd7dfee00fd6fe5"), "localhost:3002") //We need to define a node that are to join the network.
+	me := NewContact(NewKademliaID("28cb79eee9405464580e3323f156dd49d23ec7a6ffca6d664b0dc1bd38e71122"), "localhost:3002") //We need to define a node that are to join the network.
 	network := Network{
 		&me,                 //We pass the pointer to me
 		NewRoutingTable(me), //Not a defined as a pointer here due to NewRoutingTable returning a pointer object of RoutingTable
 	}
 	go network.Listen("0.0.0.0", 3002)
 
-	me2 := NewContact(NewKademliaID("9f3e804b394c86bd95b8ae1d77a1ec4ba5ce5de51faa3b7d2681419b2089f3d6"), "localhost:3002") //We need to define a node that are to join the network.
+	me2 := NewContact(NewKademliaID("76903e2dabfdde39410c0d2ac405375e9454fb1172267b72b3a95bb26d53d9ad"), "localhost:3002") //We need to define a node that are to join the network.
 
 	network.JoinNetwork(&me)
 	network.JoinNetwork(&me2)
@@ -41,7 +41,7 @@ func TestJoinNetwork(t *testing.T) {
 	fmt.Printf("Node Address222: %s\n", me2.Address)
 
 	// Get the closest contacts to verify the join process
-	closestContacts := network.RoutingTable.FindClosestContacts(NewKademliaID("eacd8eaf02d284c497494f7473bf49991b250bac94fae100acd7dfee00fd6fe5"), 1)
+	closestContacts := network.RoutingTable.FindClosestContacts(NewKademliaID("28cb79eee9405464580e3323f156dd49d23ec7a6ffca6d664b0dc1bd38e71122"), 1)
 
 	// Check if the node successfully joined the network
 	if closestContacts[0].ID.String() != me.ID.String() {

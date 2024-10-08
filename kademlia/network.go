@@ -21,7 +21,7 @@ type Network struct {
 
 func (network *Network) Listen(ip string, port int) error { //We need to return a network
 	fmt.Printf("Listening IP %s\n", ip)
-	fmt.Printf("Listening port %s\n", port)
+	fmt.Printf("Listening port %d\n", port)
 	
 	address := fmt.Sprintf("%s:%d", ip, port)
 	fmt.Printf("Listening addres %s\n", address)
@@ -137,7 +137,7 @@ func (network *Network) JoinNetwork(contact *Contact) {
 	// Send the JOIN message to the contact
 	response, err := network.SendMessage(join, contact)
 	if err != nil {
-		fmt.Printf("Failed to send JOIN message to node %s: %w", reciverID, err) //writing join acts as .self it seem like
+		fmt.Printf("Failed to send JOIN message to node %s: %v", reciverID, err) //writing join acts as .self it seem like
 	}
 
 	var msg Message
