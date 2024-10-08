@@ -10,7 +10,8 @@ import (
 	"time"
 )
 
-func commandLineInterface(kademliaInstance *kademlia.Kademlia) {
+func commandLineInterface(kademliaInstance *kademlia.Kademlia, address string) {
+	
 	for {
 		scanner := bufio.NewReader(os.Stdin)
 		fmt.Print("\n[Command] [INPUT] ... [INPUT]\n>>> ")
@@ -37,13 +38,23 @@ func commandLineInterface(kademliaInstance *kademlia.Kademlia) {
 		switch command {
 		case "PING":
 			if len(arg) == 0 {
-				fmt.Println("Usage: PING <NodeID>")
+				fmt.Println("Usage: PING <NodeID> 20+ chars")
 				continue
 			}
-			fmt.Printf("Sending PING to NodeID: %s\n", arg) // Debugging output
-			kademliaInstance.PingCommand(arg)               // Call PingCommand with NodeID
-		default:
-			fmt.Print("Unknown command...")
+			
+			//Kademlia make it possible to gain access to functions within this package.
+			contact := kademlia.NewContact(kademlia.NewKademliaID(arg), address)
+			kademliaInstance.Network.SendPingMessage(&contact) // Pass the NodeID to the PingCommand function
+		case "JOIN":
+			if len(arg) == 0 {
+				fmt.Println("Usage: JOIN <NodeID> 20+ chars")
+				return
+			}
+			//kademliaInstance.Network.JoinNetwork(arg) // Pass the NodeID to the PingCommand function
+		
+		default: 
+			fmt.Print("Entered something bad...")
+
 		}
 	}
 }
@@ -57,12 +68,15 @@ func JoinNetwork(address string) *kademlia.Kademlia {
 	routingTable := kademlia.NewRoutingTable(me)
 
 	// Add bootstrap contact (hardcoded for now)
-	bootStrapContact := kademlia.NewContact(kademlia.NewKademliaID("FFFFFFFFF0000000000000000000000000000000"), "172.20.0.6:8000")
+	bootStrapContact := kademlia.NewContact(kademlia.NewKademliaID("FFFFFFFFF0000000000000000000000000000000"), address)
 	routingTable.AddContact(bootStrapContact)
 
 	// Create data storage
 	data := make(map[string][]byte)
-	network := &kademlia.Network{}
+	network := &kademlia.Network{
+		&me,                 //We pass the pointer to me
+		routingTable,        //Not a defined as a pointer here due to NewROutingTable returning a pointer object of RoutingTable
+	}
 
 	// Create and return the Kademlia instance
 	kademliaInstance := &kademlia.Kademlia{
@@ -80,16 +94,20 @@ func main() {
 	fmt.Println("\nRunning Main function...")
 
 	NETWORK_PORT_STR := strconv.Itoa(NETWORK_PORT)
-	kademliaInstance := JoinNetwork(NETWORK_IP + ":" + NETWORK_PORT_STR)
+	var NETWORK_ADRESS string = NETWORK_IP + ":" + NETWORK_PORT_STR
+
+	kademliaInstance := JoinNetwork(NETWORK_ADRESS)
 
 	// Start listening on the network in a goroutine (concurrently)
+	fmt.Print("111111")
 	go kademliaInstance.Network.Listen(NETWORK_IP, NETWORK_PORT)
+	fmt.Print("222222")
 
 	// Ensure the listener is up before starting the CLI
 	time.Sleep(1 * time.Second)
 
 	// Start the command-line interface
-	go commandLineInterface(kademliaInstance)
+	go commandLineInterface(kademliaInstance, NETWORK_ADRESS)
 
 	// Block the main function to keep the program running
 	select {} // Keeps main running indefinitely

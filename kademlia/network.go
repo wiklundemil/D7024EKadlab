@@ -20,12 +20,20 @@ type Network struct {
 }
 
 func (network *Network) Listen(ip string, port int) error { //We need to return a network
+	fmt.Printf("Listening IP %s\n", ip)
+	fmt.Printf("Listening port %s\n", port)
+	
 	address := fmt.Sprintf("%s:%d", ip, port)
+	fmt.Printf("Listening addres %s\n", address)
+
 	listener, err := net.ListenUDP("udp", &net.UDPAddr{
 		IP:   net.ParseIP(ip),
 		Port: port,
 	})
+
 	if err != nil {
+		fmt.Printf("ERRORRR %s\n", err)
+
 		return err
 	}
 	defer listener.Close()
@@ -50,6 +58,7 @@ func (network *Network) Listen(ip string, port int) error { //We need to return 
 
 // SendPingMessage sends a PING message to a target contact to check if it's alive
 func (network *Network) SendPingMessage(contact *Contact) {
+	
 	reciverID := contact.ID
 	// Create the PING message
 	ping := Message{
@@ -141,27 +150,6 @@ func (network *Network) JoinNetwork(contact *Contact) {
 	if msg.MessageType != "JOIN_ACK" {
 		fmt.Printf("Node %s failed to join the network %s", reciverID, join.Content)
 	}
-}
-
-func (k *Kademlia) PingCommand(nodeID string) {
-	// Convert the provided string NodeID into a KademliaID
-	//The length of nodeID must be at least 20. Due to how the NewKademliaId is built
-	if len(nodeID) != 20 { //The data that should be passed to function NewKademlia
-		return
-	}
-
-	kademliaID := NewKademliaID(nodeID)
-
-	// Locate the node in the routing table using the FindContact method
-	contact, err := k.RoutingTable.FindContact(kademliaID)
-	if err != nil {
-		fmt.Printf("Node with ID %s not found in routing table.\n", nodeID)
-		return
-	}
-
-	// If the contact is found, send the ping message using the SendPingMessage function
-	k.Network.SendPingMessage(&contact)
-	fmt.Printf("Ping sent to Node %s\n", contact.Address)
 }
 
 func (network *Network) SendFindContactMessage(contact *Contact) {
