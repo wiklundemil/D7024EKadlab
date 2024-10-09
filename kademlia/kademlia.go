@@ -17,8 +17,15 @@ func (kademlia *Kademlia) LookupContact(target *Contact) []Contact {
 	return closestContacts
 }
 
-func (kademlia *Kademlia) LookupData(hash string) {
-	// TODO
+// Checks if data for a hash exists locally and returns data
+// If not found locally, a contact based on the hash is created and closesst contacts that may have the data are returned instead
+func (kademlia *Kademlia) LookupData(hash string) ([]byte, []Contact) {
+	if data, ok := (*kademlia.Data)[hash]; ok {
+		return data, nil // Return data if found
+	}
+	contact := NewContact(NewKademliaID(hash), "")      // Create a contact
+	closestContacts := kademlia.LookupContact(&contact) // Find closest contacts
+	return nil, closestContacts                         // Return nil for data not found locally and closest contacts
 }
 
 func (kademlia *Kademlia) Store(data []byte) {
