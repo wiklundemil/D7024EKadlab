@@ -1,5 +1,7 @@
 package kademlia
 
+import "fmt"
+
 type Kademlia struct {
 	RoutingTable *RoutingTable
 	Network      *Network
@@ -12,20 +14,31 @@ type Kademlia struct {
 	Data *map[string][]byte
 }
 
-func (kademlia *Kademlia) LookupContact(target *Contact) []Contact {
+func (kademlia *Kademlia) LookupContact(target *Contact) ([]Contact, error) {
 	closestContacts := kademlia.RoutingTable.FindClosestContacts(target.ID, 10) //finding 10 closest nodes to target.ID from routing table
-	return closestContacts
+
+	if len(closestContacts) == 0 {
+		return nil, fmt.Errorf("no contacts found for target ID: %s", target.ID)
+	}
+
+	return closestContacts, nil
 }
 
 // Checks if data for a hash exists locally and returns data
 // If not found locally, a contact based on the hash is created and closesst contacts that may have the data are returned instead
-func (kademlia *Kademlia) LookupData(hash string) ([]byte, []Contact) {
+func (kademlia *Kademlia) LookupData(hash string) ([]byte, []Contact, error) {
 	if data, ok := (*kademlia.Data)[hash]; ok {
-		return data, nil // Return data if found
+		return data, nil, nil // Return data if found
 	}
-	contact := NewContact(NewKademliaID(hash), "")      // Create a contact
-	closestContacts := kademlia.LookupContact(&contact) // Find closest contacts
-	return nil, closestContacts                         // Return nil for data not found locally and closest contacts
+
+	contact := NewContact(NewKademliaID(hash), "") // Create a contact
+
+	closestContacts, err := kademlia.LookupContact(&contact) // Find closest contacts
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to lookup contacts: %w", err)
+	}
+
+	return nil, closestContacts, nil // Return; nil for data not found locally and closest contacts, no error
 }
 
 func (kademlia *Kademlia) Store(data []byte) {
