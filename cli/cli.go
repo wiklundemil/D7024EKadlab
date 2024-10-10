@@ -35,9 +35,11 @@ func CommandLineInterface(kademliaInstance *kademlia.Kademlia, address string) {
 		// Handle the PING command
 		switch command {
 		case "PING":
-			handlePing(arg, kademliaInstance, address)
+			handlePing(arg, kademliaInstance, address) 
 		case "JOIN":
 			handleJoin(arg)
+		case "PUT":
+			handlePut(arg, kademliaInstance)
 		case "EXIT":
 			handleExit(arg)
 			

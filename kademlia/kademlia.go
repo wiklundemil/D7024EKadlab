@@ -1,5 +1,11 @@
 package kademlia
 
+import (
+	"crypto/sha1"
+	"encoding/hex"
+	"fmt"
+)
+
 type Kademlia struct {
 	RoutingTable *RoutingTable
 	Network      *Network
@@ -12,8 +18,8 @@ type Kademlia struct {
 	Data *map[string][]byte
 }
 
-func (kademlia *Kademlia) LookupContact(target *Contact) []Contact {
-	closestContacts := kademlia.RoutingTable.FindClosestContacts(target.ID, 10) //finding 10 closest nodes to target.ID from routing table
+func (kademlia *Kademlia) LookupContact(target *KademliaID) []Contact {
+	closestContacts := kademlia.RoutingTable.FindClosestContacts(target, 10) //finding 10 closest nodes to target.ID from routing table
 	return closestContacts
 }
 
@@ -21,6 +27,24 @@ func (kademlia *Kademlia) LookupData(hash string) {
 	// TODO
 }
 
-func (kademlia *Kademlia) Store(data []byte) {
-	// TODO
+func (kademlia *Kademlia) Store(data []byte){
+	
+	hashedData := sha1.Sum(data) //This is required also the get it up to the amount of chars to later pass to NewKademliaID due to that function require length of at least 20 chars.
+	key := hex.EncodeToString(hashedData[:])
+
+	if _, found := (*kademlia.Data)[key]; found { //If there is data on this key already we return error.
+		fmt.Println("Data could not be modified, already exist data with this key.")
+	}
+	//data, found := kademlia.Data[key] //data = the data associated with key and found is a bool if data exists.
+	(*kademlia.Data)[key] = data //We save the data in the correct format, i.e in the map
+	fmt.Println(key)
+	storeID := NewKademliaID(key)
+	contacts := kademlia.LookupContact(storeID)
+	
+	fmt.Println("Stored data with: ", key)
+	
+	for _, contact := range contacts {
+		fmt.Println("Stored data at:", &contact, " with key: ", key)
+		go kademlia.Network.SendStoreMessage(data, &contact)
+	}
 }

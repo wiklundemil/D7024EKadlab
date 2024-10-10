@@ -25,6 +25,13 @@ func (network *Network) HandleMessage(byteStream []byte) ([]byte, error) {
 		data, err := json.Marshal(response)
 		return data, err
 	}
+
+	if msg.MessageType == "STORE" {
+		response := network.ManageStore(msg.Sender)
+		data, err := json.Marshal(response)
+		return data, err
+	}
+
 	return nil, errors.New("Unkown command made...")
 }
 
@@ -41,6 +48,14 @@ func (network *Network) ManageJoin(recipient Contact) Message {
 	response := Message{
 		MessageType: "JOIN_ACK",
 		Content:     network.RoutingTable.me.Address,
+	}
+	return response
+}
+
+func (network *Network) ManageStore(recipient Contact) Message {
+	response := Message{
+		MessageType: "STORE_ACK",
+		Content: network.RoutingTable.me.Address,
 	}
 	return response
 }

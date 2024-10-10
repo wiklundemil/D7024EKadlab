@@ -23,6 +23,16 @@ func handleJoin(arg string){
 	}
 	//kademliaInstance.Network.JoinNetwork(arg) // Pass the NodeID to the PingCommand function
 }
+
+func handlePut(arg string, kademliaInstance *kademlia.Kademlia){
+	if len(arg) == 0 {
+		fmt.Println("Usage: PUT <NodeID> 20+ chars")
+		return
+	}
+	data := []byte(arg)
+	kademliaInstance.Store(data) // Pass the NodeID to the PingCommand function
+}
+
 func handleExit(arg string){
 	if len(arg) == 0 {
 		fmt.Println("Exiting node...")

@@ -56,38 +56,6 @@ func (network *Network) Listen(ip string, port int) error { //We need to return 
 	}
 }
 
-// SendPingMessage sends a PING message to a target contact to check if it's alive
-func (network *Network) SendPingMessage(contact *Contact) {
-	
-	reciverID := contact.ID
-	// Create the PING message
-	ping := Message{
-		MessageType: "PING",
-		Content:     network.RoutingTable.me.Address, // The current node's address
-		Sender:      network.RoutingTable.me,
-	}
-
-	// Send the PING message to the contact
-	response, err := network.SendMessage(ping, contact)
-	if err != nil {
-		fmt.Printf("Failed to send PING message to node %s: %v\n", reciverID, err)
-		return
-	}
-
-	// Wait for a response
-	var msg Message //Create a empty object msg beacuse Unmarshal need to parse its result into something. And we expect this to be of struct Message.
-	err = json.Unmarshal(response, &msg)
-	if err != nil {
-		fmt.Printf("No response from node %s: %v\n", reciverID, err)
-		return
-	}
-
-	if msg.MessageType != "PING_ACK" {
-		fmt.Println("PING_ACK not recived, we recived: ", msg.MessageType)
-		return
-	}
-}
-
 // SendMessage simulates sending a message to the given contact
 func (network *Network) SendMessage(msg Message, contact *Contact) ([]byte, error) {
 	connection, err := net.Dial("udp", contact.Address) //setup connection with spicific adress
@@ -119,32 +87,58 @@ func (network *Network) SendMessage(msg Message, contact *Contact) ([]byte, erro
 	return response[:bytesRead], nil
 }
 
+// SendPingMessage sends a PING message to a target contact to check if it's alive
+func (network *Network) SendPingMessage(contact *Contact) {
+	
+	reciverID := contact.ID
+	ping := Message{
+		MessageType: "PING",
+		Content:     network.RoutingTable.me.Address, // The current node's address
+		Sender:      network.RoutingTable.me,
+	}
+
+	response, err := network.SendMessage(ping, contact)
+	if err != nil {
+		fmt.Printf("Failed to send PING message to node %s: %v\n", reciverID, err)
+		return
+	}
+
+	// Wait for a response
+	var msg Message //Create a empty object msg beacuse Unmarshal need to parse its result into something. And we expect this to be of struct Message.
+	err = json.Unmarshal(response, &msg)
+	if err != nil {
+		fmt.Printf("No response from node %s: %v\n", reciverID, err)
+		return
+	}
+
+	if msg.MessageType != "PING_ACK" {
+		fmt.Println("PING_ACK not recived, we recived: ", msg.MessageType)
+		return
+	}
+}
+
 // What we require Three cases:
 // 1. Joining works.
 // 2. Joining does not work
 // 3. The contact is not reachable/does not respond.
 
-func (network *Network) JoinNetwork(contact *Contact) {
-	// Create a JOIN message
+func (network *Network) SendJoinMessage(contact *Contact) {
 	reciverID := contact.ID.String()
-
 	join := Message{
 		MessageType: "JOIN",
 		Content:     network.RoutingTable.me.Address,
 		Sender:      network.RoutingTable.me,
 	}
 
-	// Send the JOIN message to the contact
 	response, err := network.SendMessage(join, contact)
 	if err != nil {
-		fmt.Printf("Failed to send JOIN message to node %s: %v", reciverID, err) //writing join acts as .self it seem like
+		fmt.Printf("Failed to send JOIN message to node %s: %v", reciverID, err) 
 	}
 
 	var msg Message
 	err = json.Unmarshal(response, &msg)
 	if err != nil {
 		fmt.Printf("No response from node %s: %v\n", reciverID, err)
-
 	}
 
 	if msg.MessageType != "JOIN_ACK" {
@@ -160,6 +154,27 @@ func (network *Network) SendFindDataMessage(hash string) {
 	// TODO
 }
 
-func (network *Network) SendStoreMessage(data []byte) {
-	// TODO
+func (network *Network) SendStoreMessage(data []byte, contact *Contact) {
+	reciverID := contact.ID.String()
+	store := Message{
+		MessageType: "STORE",
+		Content:     network.RoutingTable.me.Address,
+		Sender:      network.RoutingTable.me,
+	}
+
+	response, err := network.SendMessage(store, contact)
+	if err != nil {
+		fmt.Printf("Failed to send STORE message to node %s: %v", reciverID, err) 
+	}
+
+	var msg Message
+	err = json.Unmarshal(response, &msg)
+	if err != nil {
+		fmt.Printf("No response from node %s: %v\n", reciverID, err)
+	}
+
+	if msg.MessageType != "STORE_ACK" {
+		fmt.Printf("Node %s failed to store the node %s", store.Sender, store.Content)
+	}
+
 }
