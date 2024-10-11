@@ -6,23 +6,24 @@ import (
 	"os"
 )
 
-func handlePing(arg string, kademliaInstance *kademlia.Kademlia, address string){
+func handlePing(arg string, kademliaInstance *kademlia.Kademlia, address string) {
 	if len(arg) == 0 {
 		fmt.Println("Usage: PING <NodeID> 20+ chars")
 		return
-	}	
+	}
 	//Kademlia make it possible to gain access to functions within this package.
 	contact := kademlia.NewContact(kademlia.NewKademliaID(arg), address)
 	kademliaInstance.Network.SendPingMessage(&contact) // Pass the NodeID to the PingCommand function
 }
 
-func handleJoin(arg string){
+func handleJoin(arg string) {
 	if len(arg) == 0 {
 		fmt.Println("Usage: JOIN <NodeID> 20+ chars")
 		return
 	}
 	//kademliaInstance.Network.JoinNetwork(arg) // Pass the NodeID to the PingCommand function
 }
+<<<<<<< Updated upstream
 
 func handlePut(arg string, kademliaInstance *kademlia.Kademlia){
 	if len(arg) == 0 {
@@ -34,6 +35,9 @@ func handlePut(arg string, kademliaInstance *kademlia.Kademlia){
 }
 
 func handleExit(arg string){
+=======
+func handleExit(arg string) {
+>>>>>>> Stashed changes
 	if len(arg) == 0 {
 		fmt.Println("Exiting node...")
 		os.Exit(0)

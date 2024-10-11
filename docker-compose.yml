@@ -5,29 +5,28 @@
 # command line flags, in order to actually get any replicas started. That
 # command requires that a docker swarm is already running in order to function.
 
-version: "3"
+version: "3.9"
+
 services:
   kademliaNodes:
-    image: kadlab:latest # Make sure your Docker image has this name.
+    image: kadlab:latest
     stdin_open: true
     tty: true
     deploy:
       mode: replicated
-      replicas: 5 #Number of nodes  
-#        resources:
-#           limits:
-#              cpus: "0.1"
-#              memory: 50M
+      replicas: 5
       restart_policy:
         condition: on-failure
         delay: 5s
         max_attempts: 3
         window: 10s
-#    ports:
-#      - "3000-3005:3000-3005"
+    environment:
+      - NODE_PORT=3000  # Default value for the container's internal port
+    ports:
+      - "3000"  # This allows Docker to dynamically allocate an available host port
+    command: ["sleep", "infinity"]  # Keeps the container alive for debugging
     networks:
       - kademlia_network
-      
+
 networks:
   kademlia_network:
-

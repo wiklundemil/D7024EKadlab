@@ -1,33 +1,28 @@
 package main
 
 import (
-	"d7024e/kademlia" //in go.mod we have a module this is what encapsulates our project and this is what is to be used for paths somehow.
-	"d7024e/cli" //in go.mod we have a module this is what encapsulates our project and this is what is to be used for paths somehow.
+	"d7024e/cli"
+	"d7024e/kademlia"
 	"fmt"
+	"os"
 	"strconv"
 	"time"
 )
 
 func JoinNetwork(address string) *kademlia.Kademlia {
-	// Create self contact
 	id := kademlia.NewRandomKademliaID()
 	me := kademlia.NewContact(id, address)
 
-	// Create routing table with self as contact
 	routingTable := kademlia.NewRoutingTable(me)
-
-	// Add bootstrap contact (hardcoded for now)
 	bootStrapContact := kademlia.NewContact(kademlia.NewKademliaID("FFFFFFFFF0000000000000000000000000000000"), address)
 	routingTable.AddContact(bootStrapContact)
 
-	// Create data storage
 	data := make(map[string][]byte)
 	network := &kademlia.Network{
-		&me,                 //We pass the pointer to me
-		routingTable,        //Not a defined as a pointer here due to NewROutingTable returning a pointer object of RoutingTable
+		&me,
+		routingTable,
 	}
 
-	// Create and return the Kademlia instance
 	kademliaInstance := &kademlia.Kademlia{
 		RoutingTable: routingTable,
 		Network:      network,
@@ -38,26 +33,37 @@ func JoinNetwork(address string) *kademlia.Kademlia {
 
 func main() {
 	var NETWORK_IP string = "0.0.0.0"
-	var NETWORK_PORT int = 3000
+	var NETWORK_PORT int
+
+	// Get port number from the environment variable or command-line argument
+	portStr, ok := os.LookupEnv("NODE_PORT")
+	if !ok {
+		if len(os.Args) > 1 {
+			portStr = os.Args[1]
+		} else {
+			fmt.Println("No valid port provided. Defaulting to port 3000.")
+			portStr = "3000" // Default port if nothing is specified
+		}
+	}
+
+	port, err := strconv.Atoi(portStr)
+	if err != nil || port < 3000 || port > 4000 {
+		fmt.Println("Invalid port number provided. Please provide a valid port number between 3000 and 4000.")
+		return
+	}
+	NETWORK_PORT = port
 
 	fmt.Println("\nRunning Main function...")
+	fmt.Printf("Listening on %s:%d\n", NETWORK_IP, NETWORK_PORT)
 
-	NETWORK_PORT_STR := strconv.Itoa(NETWORK_PORT)
-	var NETWORK_ADRESS string = NETWORK_IP + ":" + NETWORK_PORT_STR
+	NETWORK_ADDRESS := fmt.Sprintf("%s:%d", NETWORK_IP, NETWORK_PORT)
+	kademliaInstance := JoinNetwork(NETWORK_ADDRESS)
 
-	kademliaInstance := JoinNetwork(NETWORK_ADRESS)
-
-	// Start listening on the network in a goroutine (concurrently)
-	fmt.Print("111111")
 	go kademliaInstance.Network.Listen(NETWORK_IP, NETWORK_PORT)
-	fmt.Print("222222")
-
-	// Ensure the listener is up before starting the CLI
 	time.Sleep(1 * time.Second)
 
-	// Start the command-line interface
-	go cli.CommandLineInterface(kademliaInstance, NETWORK_ADRESS)
+	go cli.CommandLineInterface(kademliaInstance, NETWORK_ADDRESS)
 
-	// Block the main function to keep the program running
-	select {} // Keeps main running indefinitely
+	// Keep the program running indefinitely
+	select {}
 }
