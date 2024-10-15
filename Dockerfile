@@ -13,15 +13,11 @@ FROM alpine:latest
 # $ docker build . -t kadlab
 
 
-# Stage 1: Build the Go binary
-FROM golang:1.22 AS builder
-WORKDIR /app
-COPY . .
-RUN go build -o kademlia_app main.go
-
-# Stage 2: Create a small runtime image
 FROM alpine:latest
-WORKDIR /root/
-COPY --from=builder /app/kademlia_app .
-EXPOSE 3000
-CMD ["./kademlia_app"]
+
+RUN  apk add --no-cache go git
+# Copy the local code from the Go directory to the container
+COPY . .
+
+# Define the command to run the executable
+CMD ["go", "run" ,"main.go"]

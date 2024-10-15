@@ -57,7 +57,8 @@ func (kademlia *Kademlia) Store(data []byte){
 	(*kademlia.Data)[key] = data //We save the data in the correct format, i.e in the map
 	fmt.Println(key)
 	storeID := NewKademliaID(key)
-	contacts := kademlia.LookupContact(storeID)
+	contact := NewContact(storeID, "") 
+	contacts, _ := kademlia.LookupContact(&contact)
 	
 	fmt.Println("Stored data with: ", key)
 	
