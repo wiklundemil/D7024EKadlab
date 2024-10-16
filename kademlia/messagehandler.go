@@ -55,7 +55,7 @@ func (network *Network) ManageJoin(recipient Contact) Message {
 func (network *Network) ManageStore(recipient Contact) Message {
 	response := Message{
 		MessageType: "STORE_ACK",
-		Content: network.RoutingTable.me.Address,
+		Content:     network.RoutingTable.me.Address,
 	}
 	return response
 }

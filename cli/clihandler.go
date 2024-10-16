@@ -11,7 +11,7 @@ func handlePing(arg string, kademliaInstance *kademlia.Kademlia, address string)
 		fmt.Println("Usage: PING <NodeID> 20+ chars")
 		return
 	}
-	//Kademlia make it possible to gain access to functions within this package.
+	//Kademlia makes it possible to gain access to functions within this package.
 	contact := kademlia.NewContact(kademlia.NewKademliaID(arg), address)
 	kademliaInstance.Network.SendPingMessage(&contact) // Pass the NodeID to the PingCommand function
 }
@@ -21,27 +21,23 @@ func handleJoin(arg string) {
 		fmt.Println("Usage: JOIN <NodeID> 20+ chars")
 		return
 	}
-	//kademliaInstance.Network.JoinNetwork(arg) // Pass the NodeID to the PingCommand function
+	// TODO: Uncomment this and add the appropriate logic for joining a network
+	// kademliaInstance.Network.JoinNetwork(arg) // Pass the NodeID to the Join command
 }
-<<<<<<< Updated upstream
 
-func handlePut(arg string, kademliaInstance *kademlia.Kademlia){
+func handlePut(arg string, kademliaInstance *kademlia.Kademlia) {
 	if len(arg) == 0 {
 		fmt.Println("Usage: PUT <NodeID> 20+ chars")
 		return
 	}
 	data := []byte(arg)
-	kademliaInstance.Store(data) // Pass the NodeID to the PingCommand function
+	kademliaInstance.Store(data) // Pass the NodeID to the Store function
 }
 
-func handleExit(arg string){
-=======
 func handleExit(arg string) {
->>>>>>> Stashed changes
 	if len(arg) == 0 {
 		fmt.Println("Exiting node...")
 		os.Exit(0)
 	}
 	fmt.Println("Usage: EXIT")
-
 }
