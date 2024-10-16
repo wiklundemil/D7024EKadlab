@@ -15,16 +15,17 @@ type Message struct {
 }
 
 type Network struct {
-	Self         *Contact      //The node in wihch the network is based. This is made a pointer due to
-	RoutingTable *RoutingTable //The Routing table for this network.
+	Self         *Contact      // The node in which the network is based. This is made a pointer to allow modifications.
+	RoutingTable *RoutingTable // The Routing table for this network.
 }
 
-func (network *Network) Listen(ip string, port int) error { //We need to return a network
+// Listen starts a UDP server to listen for incoming messages.
+func (network *Network) Listen(ip string, port int) error {
 	fmt.Printf("Listening IP %s\n", ip)
 	fmt.Printf("Listening port %d\n", port)
 
 	address := fmt.Sprintf("%s:%d", ip, port)
-	fmt.Printf("Listening addres %s\n", address)
+	fmt.Printf("Listening address %s\n", address)
 
 	listener, err := net.ListenUDP("udp", &net.UDPAddr{
 		IP:   net.ParseIP(ip),
@@ -32,8 +33,7 @@ func (network *Network) Listen(ip string, port int) error { //We need to return 
 	})
 
 	if err != nil {
-		fmt.Printf("ERRORRR %s\n", err)
-
+		fmt.Printf("ERROR %s\n", err)
 		return err
 	}
 	defer listener.Close()
@@ -41,68 +41,38 @@ func (network *Network) Listen(ip string, port int) error { //We need to return 
 	fmt.Printf("Listening on %s\n", address)
 
 	for {
-		data := make([]byte, 1024) //We slice up in 1024 beacuse its relativly big and makes it possible to focus on *this* part of the bytestream which will be much smaller.
-		len, remote, err := listener.ReadFromUDP(data)
+		data := make([]byte, 1024) // Buffer for incoming data.
+		length, remote, err := listener.ReadFromUDP(data)
 		if err != nil {
 			fmt.Println("Error reading from UDP:", err)
 			continue
 		}
-		response, err := network.HandleMessage(data[:len])
+		response, err := network.HandleMessage(data[:length])
 		if err != nil {
-			fmt.Println("Error when handling Message:", err)
+			fmt.Println("Error handling message:", err)
 			continue
 		}
-		listener.WriteToUDP(response, remote)
+		_, err = listener.WriteToUDP(response, remote)
+		if err != nil {
+			fmt.Println("Error sending response:", err)
+		}
 	}
 }
 
-<<<<<<< Updated upstream
-=======
-// SendPingMessage sends a PING message to a target contact to check if it's alive
-func (network *Network) SendPingMessage(contact *Contact) {
-
-	reciverID := contact.ID
-	// Create the PING message
-	ping := Message{
-		MessageType: "PING",
-		Content:     network.RoutingTable.me.Address, // The current node's address
-		Sender:      network.RoutingTable.me,
-	}
-
-	// Send the PING message to the contact
-	response, err := network.SendMessage(ping, contact)
-	if err != nil {
-		fmt.Printf("Failed to send PING message to node %s: %v\n", reciverID, err)
-		return
-	}
-
-	// Wait for a response
-	var msg Message //Create a empty object msg beacuse Unmarshal need to parse its result into something. And we expect this to be of struct Message.
-	err = json.Unmarshal(response, &msg)
-	if err != nil {
-		fmt.Printf("No response from node %s: %v\n", reciverID, err)
-		return
-	}
-
-	if msg.MessageType != "PING_ACK" {
-		fmt.Println("PING_ACK not recived, we recived: ", msg.MessageType)
-		return
-	}
-}
-
->>>>>>> Stashed changes
-// SendMessage simulates sending a message to the given contact
+// SendMessage sends a message to the given contact.
 func (network *Network) SendMessage(msg Message, contact *Contact) ([]byte, error) {
-	connection, err := net.Dial("udp", contact.Address) //setup connection with spicific adress
+	connection, err := net.Dial("udp", contact.Address) // Setup connection with specific address
+	if err != nil {
+		return nil, err
+	}
+	defer connection.Close()
 
-	if err != nil { //Any errors during connection phase?
+	byteStream, err := json.Marshal(msg) // Serialize the message
+	if err != nil {
 		return nil, err
 	}
 
-	//If no errors we move on to saving the data
-	byteStream, err := json.Marshal(msg)  //Pointer due to us not wanting to send the object directly
-	_, err = connection.Write(byteStream) //This row is the row that does the magic, it sends the byteStream over the network (write -> udp)
-
+	_, err = connection.Write(byteStream) // Send the byte stream over the network
 	if err != nil {
 		fmt.Println("Error sending data (UDP)")
 		return nil, err
@@ -112,8 +82,7 @@ func (network *Network) SendMessage(msg Message, contact *Contact) ([]byte, erro
 	deadline := time.Now().Add(15 * time.Second)
 	connection.SetDeadline(deadline)
 
-	response := make([]byte, 1024) //1024 is a balanced aproached for the amount of bytes in one slice.
-	//slicing the stream up in parts is good to narrow down relevant information.
+	response := make([]byte, 1024)
 	bytesRead, err := connection.Read(response)
 	if err != nil {
 		fmt.Println("No response from connected node...")
@@ -122,13 +91,14 @@ func (network *Network) SendMessage(msg Message, contact *Contact) ([]byte, erro
 	return response[:bytesRead], nil
 }
 
-// SendPingMessage sends a PING message to a target contact to check if it's alive
+// SendPingMessage sends a PING message to a target contact to check if it's alive.
 func (network *Network) SendPingMessage(contact *Contact) {
-	
+	fmt.Printf("Attempting to send PING to node %s\n", contact.ID)
+
 	reciverID := contact.ID
 	ping := Message{
 		MessageType: "PING",
-		Content:     network.RoutingTable.me.Address, // The current node's address
+		Content:     network.RoutingTable.me.Address,
 		Sender:      network.RoutingTable.me,
 	}
 
@@ -138,8 +108,9 @@ func (network *Network) SendPingMessage(contact *Contact) {
 		return
 	}
 
-	// Wait for a response
-	var msg Message //Create a empty object msg beacuse Unmarshal need to parse its result into something. And we expect this to be of struct Message.
+	fmt.Printf("PING message sent to node %s, waiting for response...\n", contact.ID)
+
+	var msg Message
 	err = json.Unmarshal(response, &msg)
 	if err != nil {
 		fmt.Printf("No response from node %s: %v\n", reciverID, err)
@@ -147,18 +118,16 @@ func (network *Network) SendPingMessage(contact *Contact) {
 	}
 
 	if msg.MessageType != "PING_ACK" {
-		fmt.Println("PING_ACK not recived, we recived: ", msg.MessageType)
+		fmt.Println("PING_ACK not received, we received:", msg.MessageType)
 		return
 	}
+
+	fmt.Printf("PING_ACK received from node %s\n", contact.ID)
 }
 
-// What we require Three cases:
-// 1. Joining works.
-// 2. Joining does not work
-// 3. The contact is not reachable/does not respond.
-
+// SendJoinMessage sends a JOIN message to another node to join the network.
 func (network *Network) SendJoinMessage(contact *Contact) {
-	reciverID := contact.ID.String()
+	receiverID := contact.ID.String()
 	join := Message{
 		MessageType: "JOIN",
 		Content:     network.RoutingTable.me.Address,
@@ -167,49 +136,49 @@ func (network *Network) SendJoinMessage(contact *Contact) {
 
 	response, err := network.SendMessage(join, contact)
 	if err != nil {
-		fmt.Printf("Failed to send JOIN message to node %s: %v", reciverID, err) 
+		fmt.Printf("Failed to send JOIN message to node %s: %v\n", receiverID, err)
+		return
 	}
 
 	var msg Message
 	err = json.Unmarshal(response, &msg)
 	if err != nil {
-		fmt.Printf("No response from node %s: %v\n", reciverID, err)
+		fmt.Printf("No response from node %s: %v\n", receiverID, err)
+		return
 	}
 
 	if msg.MessageType != "JOIN_ACK" {
-		fmt.Printf("Node %s failed to join the network %s", reciverID, join.Content)
+		fmt.Printf("Node %s failed to join the network %s\n", receiverID, join.Content)
+		return
 	}
+	fmt.Printf("Successfully joined the network through node %s\n", receiverID)
 }
 
-func (network *Network) SendFindContactMessage(contact *Contact) {
-	// TODO
-}
-
-func (network *Network) SendFindDataMessage(hash string) {
-	// TODO
-}
-
+// SendStoreMessage sends a STORE message to another node to store data.
 func (network *Network) SendStoreMessage(data []byte, contact *Contact) {
-	reciverID := contact.ID.String()
+	receiverID := contact.ID.String()
 	store := Message{
 		MessageType: "STORE",
-		Content:     network.RoutingTable.me.Address,
+		Content:     string(data),
 		Sender:      network.RoutingTable.me,
 	}
 
 	response, err := network.SendMessage(store, contact)
 	if err != nil {
-		fmt.Printf("Failed to send STORE message to node %s: %v", reciverID, err) 
+		fmt.Printf("Failed to send STORE message to node %s: %v\n", receiverID, err)
+		return
 	}
 
 	var msg Message
 	err = json.Unmarshal(response, &msg)
 	if err != nil {
-		fmt.Printf("No response from node %s: %v\n", reciverID, err)
+		fmt.Printf("No response from node %s: %v\n", receiverID, err)
+		return
 	}
 
 	if msg.MessageType != "STORE_ACK" {
-		fmt.Printf("Node %s failed to store the node %s", store.Sender, store.Content)
+		fmt.Printf("Node %s failed to store the data %s\n", receiverID, store.Content)
+		return
 	}
-
+	fmt.Printf("Data successfully stored on node %s\n", receiverID)
 }

@@ -45,24 +45,34 @@ func (kademlia *Kademlia) LookupData(hash string) ([]byte, []Contact, error) {
 	return nil, closestContacts, nil // Return; nil for data not found locally and closest contacts, no error
 }
 
-func (kademlia *Kademlia) Store(data []byte){
-	
-	hashedData := sha1.Sum(data) //This is required also the get it up to the amount of chars to later pass to NewKademliaID due to that function require length of at least 20 chars.
-	key := hex.EncodeToString(hashedData[:])
+func (kademlia *Kademlia) Store(data []byte) {
+	hashedData := sha1.Sum(data)             // Generate SHA-1 hash of the data
+	key := hex.EncodeToString(hashedData[:]) // Encode the hash to a string
 
-	if _, found := (*kademlia.Data)[key]; found { //If there is data on this key already we return error.
+	if _, found := (*kademlia.Data)[key]; found { // If there is data with this key already, print a message
 		fmt.Println("Data could not be modified, already exist data with this key.")
+		return
 	}
-	//data, found := kademlia.Data[key] //data = the data associated with key and found is a bool if data exists.
-	(*kademlia.Data)[key] = data //We save the data in the correct format, i.e in the map
+
+	// Store the data in the map
+	(*kademlia.Data)[key] = data
 	fmt.Println(key)
+
+	// Create a contact for the store ID
 	storeID := NewKademliaID(key)
-	contacts := kademlia.LookupContact(storeID)
-	
-	fmt.Println("Stored data with: ", key)
-	
+	contact := NewContact(storeID, "")
+
+	contacts, err := kademlia.LookupContact(&contact)
+	if err != nil {
+		fmt.Printf("Failed to lookup contacts for storage: %v\n", err)
+		return
+	}
+
+	fmt.Println("Stored data with key:", key)
+
+	// Send store messages to the closest contacts
 	for _, contact := range contacts {
-		fmt.Println("Stored data at:", &contact, " with key: ", key)
+		fmt.Printf("Stored data at contact: %s with key: %s\n", contact.Address, key)
 		go kademlia.Network.SendStoreMessage(data, &contact)
 	}
 }
