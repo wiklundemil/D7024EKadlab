@@ -141,7 +141,7 @@ func (network *Network) SendJoinMessage(contact *Contact) {
 	response, err := network.SendMessage(join, contact)
 	if err != nil {
 		// If the message fails to send, log the error and return
-		fmt.Printf("Failed to send JOIN message to node %s: %v\n", receiverID, err)
+		fmt.Printf("Failed to send JOIN message to node, Not valid IP adress %s: %v\n", receiverID, err)
 		return
 	}
 
@@ -164,29 +164,6 @@ func (network *Network) SendJoinMessage(contact *Contact) {
 	// Successfully joined, log success
 	fmt.Printf("Successfully joined the network through node %s\n", receiverID)
 
-	// Now handle the message as if it was processed in HandleMessage
-	switch msg.MessageType {
-	case "JOIN":
-		// Log when a JOIN request is received
-		fmt.Printf("Received JOIN request from %s\n", msg.Sender.ID)
-
-		// Add the sender to the routing table
-		network.RoutingTable.AddContact(msg.Sender)
-
-		// Send a JOIN_ACK response back
-		ack := Message{
-			MessageType: "JOIN_ACK",
-			Content:     network.Self.Address, // Send the current node's address as acknowledgment
-			Sender:      *network.Self,
-		}
-
-		// Send the ACK response back to the sender
-		fmt.Printf("Sending JOIN_ACK to node %s\n", msg.Sender.ID)
-		network.SendMessage(ack, contact)
-
-	default:
-		fmt.Printf("Unknown message type: %s\n", msg.MessageType)
-	}
 }
 
 // SendStoreMessage sends a STORE message to another node to store data.
