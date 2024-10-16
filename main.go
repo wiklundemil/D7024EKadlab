@@ -10,18 +10,16 @@ import (
 )
 
 func JoinNetwork(address string) *kademlia.Kademlia {
-	id := kademlia.NewRandomKademliaID()
-	me := kademlia.NewContact(id, address)
+	id := kademlia.NewRandomKademliaID()   // Generate a random node ID
+	me := kademlia.NewContact(id, address) // Create a Contact for the current node
 
-	routingTable := kademlia.NewRoutingTable(me)
-	bootStrapContact := kademlia.NewContact(kademlia.NewKademliaID("FFFFFFFFF0000000000000000000000000000000"), address)
-	routingTable.AddContact(bootStrapContact)
-
-	data := make(map[string][]byte)
+	routingTable := kademlia.NewRoutingTable(me) // Correctly initialize routing table
 	network := &kademlia.Network{
-		&me,
-		routingTable,
+		Self:         &me,          // Correctly initialize 'Self' with the current node's contact
+		RoutingTable: routingTable, // Pass the initialized routing table
 	}
+
+	data := make(map[string][]byte) // Initialize the data storage map
 
 	kademliaInstance := &kademlia.Kademlia{
 		RoutingTable: routingTable,

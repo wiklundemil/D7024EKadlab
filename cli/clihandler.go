@@ -4,6 +4,7 @@ import (
 	"d7024e/kademlia" //in go.mod we have a module this is what encapsulates our project and this is what is to be used for paths somehow.
 	"fmt"
 	"os"
+	"strings"
 )
 
 func handlePing(arg string, kademliaInstance *kademlia.Kademlia, address string) {
@@ -16,13 +17,27 @@ func handlePing(arg string, kademliaInstance *kademlia.Kademlia, address string)
 	kademliaInstance.Network.SendPingMessage(&contact) // Pass the NodeID to the PingCommand function
 }
 
-func handleJoin(arg string) {
+func handleJoin(arg string, kademliaInstance *kademlia.Kademlia, address string) {
 	if len(arg) == 0 {
-		fmt.Println("Usage: JOIN <NodeID> 20+ chars")
+		fmt.Println("Usage: JOIN <NodeID> <Node Address>")
 		return
 	}
-	// TODO: Uncomment this and add the appropriate logic for joining a network
-	// kademliaInstance.Network.JoinNetwork(arg) // Pass the NodeID to the Join command
+
+	// Parse the NodeID and Address from the argument
+	slices := strings.Split(arg, " ")
+	if len(slices) != 2 {
+		fmt.Println("Invalid arguments. Expected format: JOIN <NodeID> <Node Address>")
+		return
+	}
+
+	nodeID := slices[0]      // Extract Node ID
+	nodeAddress := slices[1] // Extract the Node Address (IP:Port)
+
+	// Create a new contact using the provided NodeID and Address
+	contact := kademlia.NewContact(kademlia.NewKademliaID(nodeID), nodeAddress)
+
+	// Send a JOIN message to the contact
+	kademliaInstance.Network.SendJoinMessage(&contact)
 }
 
 func handlePut(arg string, kademliaInstance *kademlia.Kademlia) {

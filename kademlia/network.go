@@ -98,8 +98,8 @@ func (network *Network) SendPingMessage(contact *Contact) {
 	reciverID := contact.ID
 	ping := Message{
 		MessageType: "PING",
-		Content:     network.RoutingTable.me.Address,
-		Sender:      network.RoutingTable.me,
+		Content:     network.Self.Address,
+		Sender:      *network.Self,
 	}
 
 	response, err := network.SendMessage(ping, contact)
@@ -130,28 +130,63 @@ func (network *Network) SendJoinMessage(contact *Contact) {
 	receiverID := contact.ID.String()
 	join := Message{
 		MessageType: "JOIN",
-		Content:     network.RoutingTable.me.Address,
-		Sender:      network.RoutingTable.me,
+		Content:     network.Self.Address, // Include the current node's address in the message
+		Sender:      *network.Self,        // The sender of the message is the current node
 	}
 
+	// Log the action of sending the JOIN message
+	fmt.Printf("Sending JOIN request to node %s at address %s\n", receiverID, contact.Address)
+
+	// Send the JOIN message to the target node
 	response, err := network.SendMessage(join, contact)
 	if err != nil {
+		// If the message fails to send, log the error and return
 		fmt.Printf("Failed to send JOIN message to node %s: %v\n", receiverID, err)
 		return
 	}
 
+	// Unmarshal the response from the receiving node
 	var msg Message
 	err = json.Unmarshal(response, &msg)
 	if err != nil {
-		fmt.Printf("No response from node %s: %v\n", receiverID, err)
+		// If we cannot parse the response, log it and return
+		fmt.Printf("Failed to unmarshal response from node %s: %v\n", receiverID, err)
 		return
 	}
 
+	// Check if the response is a JOIN_ACK message
 	if msg.MessageType != "JOIN_ACK" {
-		fmt.Printf("Node %s failed to join the network %s\n", receiverID, join.Content)
+		// If the response is not what we expect, log a failure
+		fmt.Printf("Node %s failed to join the network. Expected JOIN_ACK, but got %s\n", receiverID, msg.MessageType)
 		return
 	}
+
+	// Successfully joined, log success
 	fmt.Printf("Successfully joined the network through node %s\n", receiverID)
+
+	// Now handle the message as if it was processed in HandleMessage
+	switch msg.MessageType {
+	case "JOIN":
+		// Log when a JOIN request is received
+		fmt.Printf("Received JOIN request from %s\n", msg.Sender.ID)
+
+		// Add the sender to the routing table
+		network.RoutingTable.AddContact(msg.Sender)
+
+		// Send a JOIN_ACK response back
+		ack := Message{
+			MessageType: "JOIN_ACK",
+			Content:     network.Self.Address, // Send the current node's address as acknowledgment
+			Sender:      *network.Self,
+		}
+
+		// Send the ACK response back to the sender
+		fmt.Printf("Sending JOIN_ACK to node %s\n", msg.Sender.ID)
+		network.SendMessage(ack, contact)
+
+	default:
+		fmt.Printf("Unknown message type: %s\n", msg.MessageType)
+	}
 }
 
 // SendStoreMessage sends a STORE message to another node to store data.
@@ -160,7 +195,7 @@ func (network *Network) SendStoreMessage(data []byte, contact *Contact) {
 	store := Message{
 		MessageType: "STORE",
 		Content:     string(data),
-		Sender:      network.RoutingTable.me,
+		Sender:      *network.Self,
 	}
 
 	response, err := network.SendMessage(store, contact)

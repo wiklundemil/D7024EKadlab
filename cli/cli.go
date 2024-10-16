@@ -9,7 +9,7 @@ import (
 )
 
 func CommandLineInterface(kademliaInstance *kademlia.Kademlia, address string) {
-	
+
 	for {
 		scanner := bufio.NewReader(os.Stdin)
 		fmt.Print("\n[Command] [INPUT] ... [INPUT]\n>>> ")
@@ -35,15 +35,15 @@ func CommandLineInterface(kademliaInstance *kademlia.Kademlia, address string) {
 		// Handle the PING command
 		switch command {
 		case "PING":
-			handlePing(arg, kademliaInstance, address) 
+			handlePing(arg, kademliaInstance, address)
 		case "JOIN":
-			handleJoin(arg)
+			handleJoin(arg, kademliaInstance, address)
 		case "PUT":
 			handlePut(arg, kademliaInstance)
 		case "EXIT":
 			handleExit(arg)
-			
-		default: 
+
+		default:
 			fmt.Print("Entered something bad...")
 
 		}
