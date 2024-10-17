@@ -76,3 +76,21 @@ func (kademlia *Kademlia) Store(data []byte) {
 		go kademlia.Network.SendStoreMessage(data, &contact)
 	}
 }
+
+func (kademlia *Kademlia) Get(hash string) ([]byte, []Contact, error) {
+	// Check if the data exists locally in the node’s data store
+	data, closestContacts, err := kademlia.LookupData(hash)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to lookup data: %w", err)
+	}
+
+	// If the data is found locally, return it
+	if data != nil {
+		fmt.Println("Data found locally.")
+		return data, nil, nil
+	}
+
+	// If the data is not found locally, return the closest contacts
+	fmt.Println("Data not found locally. Closest contacts returned.")
+	return nil, closestContacts, nil
+}

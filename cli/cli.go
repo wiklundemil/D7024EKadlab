@@ -42,10 +42,10 @@ func CommandLineInterface(kademliaInstance *kademlia.Kademlia, address string) {
 			handlePut(arg, kademliaInstance)
 		case "EXIT":
 			handleExit(arg)
-
+		case "GET":
+			handleGet(arg, kademliaInstance) //Add the GET
 		default:
 			fmt.Print("Entered something bad...")
-
 		}
 	}
 }

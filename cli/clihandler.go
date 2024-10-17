@@ -56,3 +56,23 @@ func handleExit(arg string) {
 	}
 	fmt.Println("Usage: EXIT")
 }
+
+func handleGet(arg string, kademliaInstance *kademlia.Kademlia) {
+	if len(arg) == 0 {
+		fmt.Println("Usage: GET <ObjectHash>")
+		return
+	}
+
+	// Call the Get method from the Kademlia instance to retrieve the object
+	data, contacts, err := kademliaInstance.Get(arg)
+	if err != nil {
+		fmt.Printf("Error retrieving object with hash %s: %v\n", arg, err)
+		return
+	}
+
+	if data != nil {
+		fmt.Printf("Object found: %s\n", string(data))
+	} else {
+		fmt.Printf("Object not found locally. Closest contacts: %v\n", contacts)
+	}
+}
