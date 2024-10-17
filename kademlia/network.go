@@ -160,9 +160,9 @@ func (network *Network) SendJoinMessage(contact *Contact) {
 		fmt.Printf("Node %s failed to join the network. Expected JOIN_ACK, but got %s\n", receiverID, msg.MessageType)
 		return
 	}
-
+	
 	// Successfully joined, log success
-	fmt.Printf("Successfully joined the network through node %s\n", receiverID)
+	fmt.Printf("JOIN_ACK recived from %s, Successfully joined the network\n", receiverID)
 
 }
 
