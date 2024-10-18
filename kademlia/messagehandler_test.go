@@ -88,3 +88,24 @@ func TestHandleStoreMessage(t *testing.T) {
 		t.Fatalf("Expected STORE_ACK but got %s", msg.MessageType)
 	}
 }
+
+func TestHandleInvalidMessage(t *testing.T) {
+	me := NewContact(NewKademliaID("ffffffff00000000000000000000000000000000"), "localhost:8000")
+	network := &Network{
+		Self:         &me,
+		RoutingTable: NewRoutingTable(me),
+	}
+
+	// Invalid message type
+	invalidMessage := Message{
+		MessageType: "INVALID_TYPE",
+		Content:     "Invalid content",
+		Sender:      me,
+	}
+
+	byteStream, _ := json.Marshal(invalidMessage)
+	_, err := network.HandleMessage(byteStream)
+	if err == nil {
+		t.Fatalf("Expected error for invalid message type but got none")
+	}
+}

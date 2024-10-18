@@ -75,3 +75,44 @@ func TestSendStoreMessage(t *testing.T) {
 	// Wait for the store message to be processed
 	time.Sleep(2 * time.Second)
 }
+
+func TestPingTimeout(t *testing.T) {
+	me := NewContact(NewKademliaID("d4838ebed2c547b6ab87e1f70b789d4f94ce7a85"), "localhost:3001")
+	network := &Network{
+		Self:         &me,
+		RoutingTable: NewRoutingTable(me),
+	}
+
+	go network.Listen("0.0.0.0", 3001)
+	time.Sleep(1 * time.Second)
+
+	invalidContact := NewContact(NewKademliaID("ffffffff00000000000000000000000000000001"), "localhost:9999")
+	network.SendPingMessage(&invalidContact)
+}
+
+func TestConcurrentStoreAndRetrieve(t *testing.T) {
+	me := NewContact(NewKademliaID("ffffffff00000000000000000000000000000000"), "localhost:8000")
+	network := &Network{
+		Self:         &me,
+		RoutingTable: NewRoutingTable(me),
+	}
+	kademlia := &Kademlia{
+		RoutingTable: network.RoutingTable,
+		Network:      network,
+		Data:         &map[string][]byte{},
+	}
+
+	data := []byte("Concurrent Data")
+	hash := kademlia.GenerateHash(data)
+
+	// Store data concurrently
+	go kademlia.Store(data)
+	go kademlia.Store(data)
+
+	time.Sleep(1 * time.Second)
+
+	retrievedData, _, err := kademlia.Get(hash)
+	if err != nil || string(retrievedData) != string(data) {
+		t.Fatalf("Failed to retrieve data after concurrent store operations")
+	}
+}
