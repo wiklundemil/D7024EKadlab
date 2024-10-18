@@ -125,6 +125,58 @@ func (network *Network) SendPingMessage(contact *Contact) {
 	fmt.Printf("PING_ACK received from node %s\n", contact.ID)
 }
 
+// SendFindContactMessage sends a FIND_NODE message to a target contact to find the closest nodes.
+func (network *Network) SendFindContactMessage(contact Contact, target *Contact, contactResponses chan Contact) {
+	findNodeMessage := Message{
+		MessageType: "FIND_NODE",
+		Content:     target.ID.String(),
+		Sender:      *network.Self,
+	}
+
+	response, err := network.SendMessage(findNodeMessage, &contact)
+	if err != nil {
+		fmt.Printf("Failed to send FIND_NODE message to node %s: %v\n", contact.ID.String(), err)
+		return
+	}
+
+	var foundContacts []Contact
+	err = json.Unmarshal(response, &foundContacts)
+	if err != nil {
+		fmt.Printf("Failed to unmarshal response from node %s: %v\n", contact.ID.String(), err)
+		return
+	}
+
+	// Send each found contact to the channel
+	for _, foundContact := range foundContacts {
+		contactResponses <- foundContact
+	}
+}
+
+// SendFindDataMessage sends a FIND_DATA message to a target contact to find data by hash.
+func (network *Network) SendFindDataMessage(contact Contact, hash string, dataResponses chan []byte, contactWithDataChan chan Contact) {
+	findDataMessage := Message{
+		MessageType: "FIND_DATA",
+		Content:     hash,
+		Sender:      *network.Self,
+	}
+
+	response, err := network.SendMessage(findDataMessage, &contact)
+	if err != nil {
+		fmt.Printf("Failed to send FIND_DATA message to node %s: %v\n", contact.ID.String(), err)
+		return
+	}
+
+	var data []byte
+	err = json.Unmarshal(response, &data)
+	if err == nil && len(data) > 0 {
+		fmt.Printf("Data found for hash %s on node %s\n", hash, contact.ID.String())
+		dataResponses <- data
+		contactWithDataChan <- contact
+	} else if err != nil {
+		fmt.Printf("Error unmarshaling FIND_DATA response from node %s: %v\n", contact.ID.String(), err)
+	}
+}
+
 // SendJoinMessage sends a JOIN message to another node to join the network.
 func (network *Network) SendJoinMessage(contact *Contact) {
 	receiverID := contact.ID.String()
@@ -141,7 +193,7 @@ func (network *Network) SendJoinMessage(contact *Contact) {
 	response, err := network.SendMessage(join, contact)
 	if err != nil {
 		// If the message fails to send, log the error and return
-		fmt.Printf("Failed to send JOIN message to node, Not valid IP adress %s: %v\n", receiverID, err)
+		fmt.Printf("Failed to send JOIN message to node %s: %v\n", receiverID, err)
 		return
 	}
 
@@ -160,10 +212,9 @@ func (network *Network) SendJoinMessage(contact *Contact) {
 		fmt.Printf("Node %s failed to join the network. Expected JOIN_ACK, but got %s\n", receiverID, msg.MessageType)
 		return
 	}
-	
-	// Successfully joined, log success
-	fmt.Printf("JOIN_ACK recived from %s, Successfully joined the network\n", receiverID)
 
+	// Successfully joined, log success
+	fmt.Printf("JOIN_ACK received from %s, Successfully joined the network\n", receiverID)
 }
 
 // SendStoreMessage sends a STORE message to another node to store data.
