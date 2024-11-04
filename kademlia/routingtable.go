@@ -1,11 +1,13 @@
 package kademlia
 
-const bucketSize = 20
+import "fmt"
+
+const bucketSize = k
 
 // RoutingTable definition
 // keeps a refrence contact of me and an array of buckets
 type RoutingTable struct {
-	me      Contact
+	Me      Contact
 	buckets [IDLength * 8]*bucket
 }
 
@@ -15,15 +17,22 @@ func NewRoutingTable(me Contact) *RoutingTable {
 	for i := 0; i < IDLength*8; i++ {
 		routingTable.buckets[i] = newBucket()
 	}
-	routingTable.me = me
+	routingTable.Me = me
 	return routingTable
 }
 
 // AddContact add a new contact to the correct Bucket
-func (routingTable *RoutingTable) AddContact(contact Contact) {
+func (routingTable *RoutingTable) AddContact(contact Contact) (bool, *Contact) {
 	bucketIndex := routingTable.getBucketIndex(contact.ID)
 	bucket := routingTable.buckets[bucketIndex]
-	bucket.AddContact(contact)
+	isFull, lastContact := bucket.AddContact(contact)
+	return isFull, lastContact
+}
+// RemoveContact remove contact from bucket
+func (routingTable *RoutingTable) RemoveContact(contact *Contact) {
+	bucketIndex := routingTable.getBucketIndex(contact.ID)
+	bucket := routingTable.buckets[bucketIndex]
+	bucket.RemoveContact(contact)
 }
 
 // FindClosestContacts finds the count closest Contacts to the target in the RoutingTable
@@ -56,7 +65,7 @@ func (routingTable *RoutingTable) FindClosestContacts(target *KademliaID, count 
 
 // getBucketIndex get the correct Bucket index for the KademliaID
 func (routingTable *RoutingTable) getBucketIndex(id *KademliaID) int {
-	distance := id.CalcDistance(routingTable.me.ID)
+	distance := id.CalcDistance(routingTable.Me.ID)
 	for i := 0; i < IDLength; i++ {
 		for j := 0; j < 8; j++ {
 			if (distance[i]>>uint8(7-j))&0x1 != 0 {
@@ -66,4 +75,26 @@ func (routingTable *RoutingTable) getBucketIndex(id *KademliaID) int {
 	}
 
 	return IDLength*8 - 1
+}
+
+func (routingTable *RoutingTable) PrintIPs() {
+	for i := 0; i < IDLength*8; i++ {
+		bucket := routingTable.buckets[i]
+		if bucket.Len() > 0 {
+			//PRINT IP and ID
+			fmt.Printf("Bucket %d: %v\n", i, bucket)
+			bucket.PrintIPs()
+		}
+	}
+}
+
+func (routingTable *RoutingTable) PrintTables() {
+	fmt.Println("Routing Table:")
+	fmt.Println("Me: ", routingTable.Me)
+	for i := 0; i < IDLength*8; i++ {
+		bucket := routingTable.buckets[i]
+		if bucket.Len() > 0 {
+			fmt.Printf("Bucket %d: %v\n", i, bucket)
+		}
+	}
 }

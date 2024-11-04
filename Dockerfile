@@ -1,27 +1,21 @@
-# Stage 1: Build the Go binary
-FROM golang:1.22 AS builder
-WORKDIR /app
+FROM alpine:latest
 
-# Copy go.mod and go.sum files and download dependencies first.
-COPY go.mod ./
-RUN go mod download
+# Add the commands needed to put your compiled go binary in the container and
+# run it when the container starts.
+#
+# See https://docs.docker.com/engine/reference/builder/ for a reference of all
+# the commands you can use in this file.
+#
+# In order to use this file together with the docker-compose.yml file in the
+# same directory, you need to ensure the image you build gets the name
+# "kadlab", which you do by using the following command:
+# $ docker build . -t kadlab
 
-# Now copy the rest of the application code.
+# Install Go and dependencies
+RUN apk add --no-cache go git
+
+# Copy the source code into the container
 COPY . .
 
-# Build the application. 
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o kademlia_app main.go
-
-# Stage 2: Create a small runtime image
-FROM alpine:latest
-WORKDIR /root/
-COPY --from=builder /app/kademlia_app .
-
-# Make sure the binary is executable. add root 
-RUN chmod +x /root/kademlia_app
-
-# Expose the port (3000, for example)
-EXPOSE 3000
-
-# Run the application
-CMD ["./kademlia_app"]
+# Command to run the executable
+CMD ["go", "run", "main.go"]

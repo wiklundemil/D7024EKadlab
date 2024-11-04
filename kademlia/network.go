@@ -4,244 +4,315 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
-	"time"
 )
 
-// Message struct representing the message structure used for communication
 type Message struct {
-	MessageType string
-	Content     string
-	Sender      Contact
+	Type     string      
+	SenderID *KademliaID 
+	SenderIP string      
+	TargetID string      
+	TargetIP string      
+	DataID   *KademliaID 
+	Data     []byte
 }
 
 type Network struct {
-	Self         *Contact      // The node in which the network is based. This is made a pointer to allow modifications.
-	RoutingTable *RoutingTable // The Routing table for this network.
+	responseChan chan Response
+	connection         net.PacketConn
 }
 
-// Listen starts a UDP server to listen for incoming messages.
-func (network *Network) Listen(ip string, port int) error {
-	fmt.Printf("Listening IP %s\n", ip)
-	fmt.Printf("Listening port %d\n", port)
+type Response struct {
+	Data            []byte    `json:"data"`
+	ClosestContacts []Contact `json:"closest_contacts"`
+	Target          *Contact  `json:"target"`
+}
 
-	address := fmt.Sprintf("%s:%d", ip, port)
-	fmt.Printf("Listening address %s\n", address)
+func NewNetwork(connection net.PacketConn) *Network {
+	return &Network{make(chan Response), connection}
+}
 
-	listener, err := net.ListenUDP("udp", &net.UDPAddr{
-		IP:   net.ParseIP(ip),
-		Port: port,
-	})
-
-	if err != nil {
-		fmt.Printf("ERROR %s\n", err)
-		return err
-	}
-	defer listener.Close()
-
-	fmt.Printf("Listening on %s\n", address)
+func (network *Network) Listen(kademliaInstance *Kademlia) {
+	fmt.Println("Listening on port 8000")
+	defer network.connection.Close()
 
 	for {
-		data := make([]byte, 1024) // Buffer for incoming data.
-		length, remote, err := listener.ReadFromUDP(data)
+		var buffer [8192]byte
+		byteAmount, addr, err := network.connection.ReadFrom(buffer[0:])
 		if err != nil {
-			fmt.Println("Error reading from UDP:", err)
+			fmt.Println(err)
+			return
+		}
+		var msg Message
+		err = json.Unmarshal(buffer[:byteAmount], &msg)
+		if err != nil {
+			fmt.Println("Unmarshalling error, message:", err)
 			continue
 		}
-		response, err := network.HandleMessage(data[:length])
-		if err != nil {
-			fmt.Println("Error handling message:", err)
-			continue
-		}
-		_, err = listener.WriteToUDP(response, remote)
-		if err != nil {
-			fmt.Println("Error sending response:", err)
-		}
+		network.handleMessage(kademliaInstance, msg, addr)
 	}
 }
 
-// SendMessage sends a message to the given contact.
-func (network *Network) SendMessage(msg Message, contact *Contact) ([]byte, error) {
-	connection, err := net.Dial("udp", contact.Address) // Setup connection with specific address
+func (network *Network) handleMessage(kademliaInstance *Kademlia, msg Message, addr net.Addr) {
+	switch msg.Type {
+	case "PING":
+		network.handlePing(kademliaInstance, msg, addr)
+
+	case "STORE":
+		network.handleStore(kademliaInstance, msg, addr)
+
+	case "FIND_NODE":
+		network.handleFindNode(kademliaInstance, msg, addr)
+
+	case "FIND_DATA":
+		network.handleFindData(kademliaInstance, msg, addr)
+	}
+}
+
+func (network *Network) handlePing(kademliaInstance *Kademlia, msg Message, addr net.Addr) {
+	PONG := Message{
+		Type:     "PONG",
+		SenderID: kademliaInstance.RoutingTable.Me.ID,
+		SenderIP: kademliaInstance.RoutingTable.Me.Address,
+	}
+	data, _ := json.Marshal(PONG)
+	_, err := network.connection.WriteTo(data, addr)
 	if err != nil {
-		return nil, err
+		fmt.Println("Error sending PONG:", err)
+	} else {
+		fmt.Println("Received PING. Added contact with ID:", msg.SenderID.String(), "and IP:", msg.SenderIP)
+		action := Action{
+			Action:   "UpdateRT",
+			SenderId: msg.SenderID,
+			SenderIp: msg.SenderIP,
+		}
+		kademliaInstance.ActionChannel <- action
+	}
+}
+
+func (network *Network) SendPingMessage(sender *Contact, recipient *Contact) bool {
+	PING := Message{
+		Type:     "PING",
+		SenderID: sender.ID,
+		SenderIP: sender.Address,
+	}
+
+	response, err := network.SendMessage(sender, recipient, PING)
+	if err != nil {
+		fmt.Println("Error sending PING message:", err)
+		return false
+	}
+
+	var msg Message
+	err = json.Unmarshal(response, &msg)
+	if err != nil {
+		fmt.Println("Unmarshalling error, message:", err)
+		return false
+	}
+
+	if msg.Type == "PONG" {
+		fmt.Println("PONG from", recipient.Address)
+		return true
+	} else {
+		fmt.Println("Unexpected message:", msg)
+		return false
+	}
+}
+
+func (network *Network) handleStore(kademliaInstance *Kademlia, msg Message, addr net.Addr) {
+	STORE_ACK := Message{
+		Type:     "STORE_ACK",
+		SenderID: kademliaInstance.RoutingTable.Me.ID,
+		SenderIP: kademliaInstance.RoutingTable.Me.Address,
+	}
+	data, _ := json.Marshal(STORE_ACK)
+	_, err := network.connection.WriteTo(data, addr)
+	if err != nil {
+		fmt.Println("Error sending STORE_ACK:", err)
+	} else {
+		fmt.Println("Received STORE. Added to routing table ID:", msg.SenderID.String(), "with IP:", msg.SenderIP)
+		action := Action{
+			Action:   "Store",
+			Hash:     msg.DataID.String(),
+			Data:     msg.Data,
+			SenderId: msg.SenderID,
+			SenderIp: msg.SenderIP,
+		}
+		kademliaInstance.ActionChannel <- action
+	}
+}
+
+func (network *Network) SendStoreMessage(sender *Contact, receiver *Contact, dataID *KademliaID, data []byte) bool {
+	STORE := Message{
+		Type:     "STORE",
+		SenderID: sender.ID,
+		SenderIP: sender.Address,
+		DataID:   dataID,
+		Data:     data,
+	}
+
+	response, err := network.SendMessage(sender, receiver, STORE)
+	if err != nil {
+		fmt.Println("failed to send STORE message:", err)
+		return false
+	}
+
+	var STORE_ACK Message
+	err = json.Unmarshal(response, &STORE_ACK)
+	if err != nil {
+		fmt.Println("Unmarshalling error, message:", err)
+		return false
+	}
+	fmt.Println("Response message:", STORE_ACK.Type)
+	if STORE_ACK.Type == "STORE_ACK" {
+		fmt.Println("STORE_ACK from", receiver.Address)
+		return true
+	} else {
+		fmt.Println("Unexpected message:", STORE_ACK)
+		return false
+	}
+}
+
+func (network *Network) handleFindData(kademliaInstance *Kademlia, msg Message, addr net.Addr) {
+	if network.SendPingMessage(&kademliaInstance.RoutingTable.Me, &Contact{ID: msg.SenderID, Address: msg.SenderIP}) {
+		action := Action{
+			Action:   "UpdateRT",
+			SenderId: msg.SenderID,
+			SenderIp: msg.SenderIP,
+		}
+		kademliaInstance.ActionChannel <- action
+	}
+	action := Action{
+		Action:   "LookupData",
+		SenderId: msg.SenderID,
+		SenderIp: msg.SenderIP,
+		Hash:     msg.TargetID,
+	}
+	kademliaInstance.ActionChannel <- action
+	responseChannel := <-network.responseChan
+
+	response := Response{
+		Data:            responseChannel.Data,
+		ClosestContacts: responseChannel.ClosestContacts,
+	}
+	responseChannel.Data, _ = json.Marshal(response)
+	_, err := network.connection.WriteTo(responseChannel.Data, addr)
+	if err != nil {
+		fmt.Println("Error handle closest contacts:", err)
+	}
+}
+
+func (network *Network) SendFindDataMessage(sender *Contact, receiver *Contact, hash string) ([]Contact, []byte, error) {
+	FINDDATA := Message{
+		Type:     "FIND_DATA",
+		SenderID: sender.ID,
+		SenderIP: sender.Address,
+		TargetID: hash,
+	}
+
+	response, err := network.SendMessage(sender, receiver, FINDDATA)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to send FIND_DATA message: %v", err)
+	}
+	type Response struct {
+		Data            []byte    `json:"data"`
+		ClosestContacts []Contact `json:"closest_contacts"`
+	}
+
+	var result Response
+	err = json.Unmarshal(response, &result)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Unmarshalling error, message: %v", err)
+	}
+	data := result.Data
+	closestContacts := result.ClosestContacts
+
+	return closestContacts, data, nil
+}
+
+
+func (network *Network) handleFindNode(kademliaInstance *Kademlia, msg Message, addr net.Addr) {
+	fmt.Println("Received FIND_NODE")
+	if network.SendPingMessage(&kademliaInstance.RoutingTable.Me, &Contact{ID: msg.SenderID, Address: msg.SenderIP}) {
+		action := Action{
+			Action:   "UpdateRT",
+			SenderId: msg.SenderID,
+			SenderIp: msg.SenderIP,
+		}
+		kademliaInstance.ActionChannel <- action
+	} else {
+		fmt.Println("Error receiving PONG")
+	}
+	contact := Contact{ID: NewKademliaID(msg.TargetID), Address: msg.SenderIP}
+	action := Action{
+		Action:   "LookupContact",
+		SenderId: NewKademliaID(msg.SenderID.String()),
+		SenderIp: msg.SenderIP,
+		Target:   &contact,
+	}
+	kademliaInstance.ActionChannel <- action
+	responseChannel := <-network.responseChan
+	response := Response{
+		Data:            responseChannel.Data,
+		ClosestContacts: responseChannel.ClosestContacts,
+	}
+	responseChannel.Data, _ = json.Marshal(response)
+	_, err := network.connection.WriteTo(responseChannel.Data, addr)
+	if err != nil {
+		fmt.Println("Error handle closest contacts:", err)
+	}
+}
+
+func (network *Network) SendFindContactMessage(sender *Contact, receiver *Contact, target *Contact) ([]Contact, error) {
+	FINDMESSAGE := Message{
+		Type:     "FIND_NODE",
+		SenderID: sender.ID,
+		SenderIP: sender.Address,
+		TargetID: target.ID.String(),
+		TargetIP: target.Address,
+	}
+
+	response, err := network.SendMessage(sender, receiver, FINDMESSAGE)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send FIND_NODE message: %v", err)
+	}
+
+	var result Response
+	err = json.Unmarshal(response, &result)
+	if err != nil {
+		return nil, fmt.Errorf("Unmarshalling error, contacts: %v", err)
+	}
+	closestContacts := result.ClosestContacts
+	fmt.Println("Found", len(closestContacts), "closest contacts.")
+	return closestContacts, nil
+}
+
+func (network *Network) SendMessage(sender *Contact, receiver *Contact, msg interface{}) ([]byte, error) {
+	udpAddr, err := net.ResolveUDPAddr("udp", receiver.Address)
+	if err != nil {
+		return nil, fmt.Errorf("UDP address error: %v", err)
+	}
+
+	connection, err := net.DialUDP("udp", nil, udpAddr)
+	if err != nil {
+		return nil, fmt.Errorf("UDP error: %v", err)
 	}
 	defer connection.Close()
 
-	byteStream, err := json.Marshal(msg) // Serialize the message
+	data, err := json.Marshal(msg)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error serializing message: %v", err)
 	}
 
-	_, err = connection.Write(byteStream) // Send the byte stream over the network
+	_, err = connection.Write(data)
 	if err != nil {
-		fmt.Println("Error sending data (UDP)")
-		return nil, err
+		return nil, fmt.Errorf("send message error: %v", err)
 	}
 
-	// Set a deadline for the connection. If the following read operation does not complete in time, it will fail.
-	deadline := time.Now().Add(15 * time.Second)
-	connection.SetDeadline(deadline)
-
-	response := make([]byte, 1024)
-	bytesRead, err := connection.Read(response)
+	var buffer [8192]byte
+	byteAmount, _, err := connection.ReadFromUDP(buffer[0:])
 	if err != nil {
-		fmt.Println("No response from connected node...")
-		return nil, err
-	}
-	return response[:bytesRead], nil
-}
-
-// SendPingMessage sends a PING message to a target contact to check if it's alive.
-func (network *Network) SendPingMessage(contact *Contact) {
-	fmt.Printf("Attempting to send PING to node %s\n", contact.ID)
-
-	reciverID := contact.ID
-	ping := Message{
-		MessageType: "PING",
-		Content:     network.Self.Address,
-		Sender:      *network.Self,
+		return nil, fmt.Errorf("receiving response error: %v", err)
 	}
 
-	response, err := network.SendMessage(ping, contact)
-	if err != nil {
-		fmt.Printf("Failed to send PING message to node %s: %v\n", reciverID, err)
-		return
-	}
-
-	fmt.Printf("PING message sent to node %s, waiting for response...\n", contact.ID)
-
-	var msg Message
-	err = json.Unmarshal(response, &msg)
-	if err != nil {
-		fmt.Printf("No response from node %s: %v\n", reciverID, err)
-		return
-	}
-
-	if msg.MessageType != "PING_ACK" {
-		fmt.Println("PING_ACK not received, we received:", msg.MessageType)
-		return
-	}
-
-	fmt.Printf("PING_ACK received from node %s\n", contact.ID)
-}
-
-// SendFindContactMessage sends a FIND_NODE message to a target contact to find the closest nodes.
-func (network *Network) SendFindContactMessage(contact Contact, target *Contact, contactResponses chan Contact) {
-	findNodeMessage := Message{
-		MessageType: "FIND_NODE",
-		Content:     target.ID.String(),
-		Sender:      *network.Self,
-	}
-
-	response, err := network.SendMessage(findNodeMessage, &contact)
-	if err != nil {
-		fmt.Printf("Failed to send FIND_NODE message to node %s: %v\n", contact.ID.String(), err)
-		return
-	}
-
-	var foundContacts []Contact
-	err = json.Unmarshal(response, &foundContacts)
-	if err != nil {
-		fmt.Printf("Failed to unmarshal response from node %s: %v\n", contact.ID.String(), err)
-		return
-	}
-
-	// Send each found contact to the channel
-	for _, foundContact := range foundContacts {
-		contactResponses <- foundContact
-	}
-}
-
-// SendFindDataMessage sends a FIND_DATA message to a target contact to find data by hash.
-func (network *Network) SendFindDataMessage(contact Contact, hash string, dataResponses chan []byte, contactWithDataChan chan Contact) {
-	findDataMessage := Message{
-		MessageType: "FIND_DATA",
-		Content:     hash,
-		Sender:      *network.Self,
-	}
-
-	response, err := network.SendMessage(findDataMessage, &contact)
-	if err != nil {
-		fmt.Printf("Failed to send FIND_DATA message to node %s: %v\n", contact.ID.String(), err)
-		return
-	}
-
-	var data []byte
-	err = json.Unmarshal(response, &data)
-	if err == nil && len(data) > 0 {
-		fmt.Printf("Data found for hash %s on node %s\n", hash, contact.ID.String())
-		dataResponses <- data
-		contactWithDataChan <- contact
-	} else if err != nil {
-		fmt.Printf("Error unmarshaling FIND_DATA response from node %s: %v\n", contact.ID.String(), err)
-	}
-}
-
-// SendJoinMessage sends a JOIN message to another node to join the network.
-func (network *Network) SendJoinMessage(contact *Contact) {
-	receiverID := contact.ID.String()
-	join := Message{
-		MessageType: "JOIN",
-		Content:     network.Self.Address, // Include the current node's address in the message
-		Sender:      *network.Self,        // The sender of the message is the current node
-	}
-
-	// Log the action of sending the JOIN message
-	fmt.Printf("Sending JOIN request to node %s at address %s\n", receiverID, contact.Address)
-
-	// Send the JOIN message to the target node
-	response, err := network.SendMessage(join, contact)
-	if err != nil {
-		// If the message fails to send, log the error and return
-		fmt.Printf("Failed to send JOIN message to node %s: %v\n", receiverID, err)
-		return
-	}
-
-	// Unmarshal the response from the receiving node
-	var msg Message
-	err = json.Unmarshal(response, &msg)
-	if err != nil {
-		// If we cannot parse the response, log it and return
-		fmt.Printf("Failed to unmarshal response from node %s: %v\n", receiverID, err)
-		return
-	}
-
-	// Check if the response is a JOIN_ACK message
-	if msg.MessageType != "JOIN_ACK" {
-		// If the response is not what we expect, log a failure
-		fmt.Printf("Node %s failed to join the network. Expected JOIN_ACK, but got %s\n", receiverID, msg.MessageType)
-		return
-	}
-
-	// Successfully joined, log success
-	fmt.Printf("JOIN_ACK received from %s, Successfully joined the network\n", receiverID)
-}
-
-// SendStoreMessage sends a STORE message to another node to store data.
-func (network *Network) SendStoreMessage(data []byte, contact *Contact) {
-	receiverID := contact.ID.String()
-	store := Message{
-		MessageType: "STORE",
-		Content:     string(data),
-		Sender:      *network.Self,
-	}
-
-	response, err := network.SendMessage(store, contact)
-	if err != nil {
-		fmt.Printf("Failed to send STORE message to node %s: %v\n", receiverID, err)
-		return
-	}
-
-	var msg Message
-	err = json.Unmarshal(response, &msg)
-	if err != nil {
-		fmt.Printf("No response from node %s: %v\n", receiverID, err)
-		return
-	}
-
-	if msg.MessageType != "STORE_ACK" {
-		fmt.Printf("Node %s failed to store the data %s\n", receiverID, store.Content)
-		return
-	}
-	fmt.Printf("Data successfully stored on node %s\n", receiverID)
+	return buffer[:byteAmount], nil
 }

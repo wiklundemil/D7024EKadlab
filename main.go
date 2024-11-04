@@ -4,64 +4,103 @@ import (
 	"d7024e/cli"
 	"d7024e/kademlia"
 	"fmt"
+	"log"
+	"net"
 	"os"
-	"strconv"
 	"time"
 )
 
-func JoinNetwork(address string) *kademlia.Kademlia {
-	id := kademlia.NewRandomKademliaID()   // Generate a random node ID
-	me := kademlia.NewContact(id, address) // Create a Contact for the current node
-
-	routingTable := kademlia.NewRoutingTable(me) // Correctly initialize routing table
-	network := &kademlia.Network{
-		Self:         &me,          // Correctly initialize 'Self' with the current node's contact
-		RoutingTable: routingTable, // Pass the initialized routing table
-	}
-
-	data := make(map[string][]byte) // Initialize the data storage map
-
-	kademliaInstance := &kademlia.Kademlia{
-		RoutingTable: routingTable,
-		Network:      network,
-		Data:         &data,
-	}
-	return kademliaInstance
-}
-
 func main() {
-	var NETWORK_IP string = "0.0.0.0"
-	var NETWORK_PORT int
-
-	// Get port number from the environment variable or command-line argument
-	portStr, ok := os.LookupEnv("NODE_PORT")
-	if !ok {
-		if len(os.Args) > 1 {
-			portStr = os.Args[1]
-		} else {
-			fmt.Println("No valid port provided. Defaulting to port 3000.")
-			portStr = "3000" // Default port if nothing is specified
-		}
-	}
-
-	port, err := strconv.Atoi(portStr)
-	if err != nil || port < 3000 || port > 4000 {
-		fmt.Println("Invalid port number provided. Please provide a valid port number between 3000 and 4000.")
+	fmt.Println("Starting the kademlia app...")
+	ipf, err := GetOutboundIP()
+	if err != nil {
+		fmt.Println("Error getting IP: ", err)
 		return
 	}
-	NETWORK_PORT = port
-
-	fmt.Println("\nRunning Main function...")
-	fmt.Printf("Listening on %s:%d\n", NETWORK_IP, NETWORK_PORT)
-
-	NETWORK_ADDRESS := fmt.Sprintf("%s:%d", NETWORK_IP, NETWORK_PORT)
-	kademliaInstance := JoinNetwork(NETWORK_ADDRESS)
-
-	go kademliaInstance.Network.Listen(NETWORK_IP, NETWORK_PORT)
-	time.Sleep(1 * time.Second)
-
-	go cli.CommandLineInterface(kademliaInstance, NETWORK_ADDRESS)
-
-	// Keep the program running indefinitely
+	ip := ipf.String()
+	if ip == "172.20.0.6" {
+		StartBootstrapNode(ip)
+	} else {
+		StartNode(ip)
+	}
 	select {}
 }
+
+func StartBootstrapNode(ip string) {
+	k, err := JoinNetworkBootstrap(ip, "8000")
+	if err != nil {
+		fmt.Println("Error joining network: ", err)
+		return
+	}
+	go k.ListenActionChannel()
+	time.Sleep(1 * time.Second)
+	go k.Network.Listen(k)
+	c := cli.NewCLI(k)
+	go c.CliHandler()
+}
+
+func StartNode(ip string) {
+
+	k, err := JoinNetwork(ip, "8000")
+	if err != nil {
+		fmt.Println("Error joining network: ", err)
+		return
+	}
+	go k.ListenActionChannel()
+	go k.Network.Listen(k)
+	time.Sleep(1 * time.Second)
+	DoLookUpOnSelf(k)
+	c := cli.NewCLI(k)
+	if c.CliHandler() {
+		os.Exit(0)
+	}
+}
+
+func JoinNetwork(ip string, port string) (*kademlia.Kademlia, error) {
+	id := kademlia.NewRandomKademliaID()
+	contact := kademlia.NewContact(id, ip+":"+port)
+	contact.CalcDistance(id)
+	routingTable := kademlia.NewRoutingTable(contact)
+	bootStrapContact := kademlia.NewContact(kademlia.NewKademliaID("FFFFFFFFF0000000000000000000000000000000)"), "172.20.0.6:8000")
+	routingTable.AddContact(bootStrapContact)
+
+	conn, err := net.ListenPacket("udp", ":"+port)
+	if err != nil {
+		return nil, err
+	}
+
+	return kademlia.NewKademlia(routingTable, conn), nil
+}
+
+func JoinNetworkBootstrap(ip string, port string) (*kademlia.Kademlia, error) {
+	bootStrapContact := kademlia.NewContact(kademlia.NewKademliaID("FFFFFFFFF0000000000000000000000000000000)"), ip+":"+port)
+	bootStrapContact.CalcDistance(bootStrapContact.ID)
+	routingTable := kademlia.NewRoutingTable(bootStrapContact)
+	conn, err := net.ListenPacket("udp", ":"+port)
+	if err != nil {
+		return nil, err
+	}
+
+	return kademlia.NewKademlia(routingTable, conn), nil
+}
+
+func DoLookUpOnSelf(k *kademlia.Kademlia) {
+	fmt.Println("Doing lookup on self")
+	if k.RoutingTable == nil {
+		fmt.Println("RoutingTable is nil, aborting lookup")
+		return
+	}
+	_, _, _ = k.NodeLookup(&k.RoutingTable.Me, "")
+}
+
+func GetOutboundIP() (net.IP, error) {
+	conn, err := net.Dial("udp", "8.8.8.8:80")
+	if err != nil {
+		log.Fatal(err)
+		return nil, err
+	}
+	defer conn.Close()
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
+	return localAddr.IP, nil
+}
+
